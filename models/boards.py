@@ -1,4 +1,5 @@
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Column
+from sqlalchemy import JSON
 from typing import Optional, List
 from .helper import id_generator
 
@@ -7,7 +8,7 @@ class Board(SQLModel, table=True):
     """Kanban-style board to organize work."""
     id: str = Field(default_factory=id_generator('board', 10), primary_key=True)
     name: str = Field(index=True)
-    columns: List[str] = Field(default_factory=list, sa_type=list)
+    columns: List[str] = Field(default_factory=list, sa_column=Column(JSON))
 
 
 class Task(SQLModel, table=True):

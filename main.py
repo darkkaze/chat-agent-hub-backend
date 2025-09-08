@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from apis import auth, users, channels, chats, agents, webhooks, boards, tasks
+from apis import auth, channels, chats, webhooks, boards, tasks
 from database import engine
 
 app = FastAPI(
@@ -10,10 +10,8 @@ app = FastAPI(
 )
 
 app.include_router(auth.router)
-app.include_router(users.router)
 app.include_router(channels.router)
 app.include_router(chats.router)
-app.include_router(agents.router)
 app.include_router(webhooks.router)
 app.include_router(boards.router)
 app.include_router(tasks.router)
