@@ -5,7 +5,7 @@ from models.auth import User, Agent, Token, TokenUser, TokenAgent, UserRole
 from models.channels import Channel, ChannelAgent
 from .schemas.auth import (
     LoginRequest, LoginResponse, CreateAgentRequest, CreateUserRequest, UpdateUserRequest, UpdateAgentRequest,
-    UserResponse, AgentResponse, MessageResponse
+    UserResponse, AgentResponse, MessageResponse, SignupRequest
 )
 from helpers.auth import get_auth_token
 from helpers.auth import require_admin
@@ -16,6 +16,86 @@ from datetime import datetime, timedelta, timezone
 from models.helper import id_generator
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
+
+
+@router.get("/has-users")
+async def has_users(
+    db_session: Session = Depends(get_session)
+) -> dict:
+    """Check if any users exist in the system (for onboarding)."""
+    
+    # Count total users regardless of is_active status
+    user_statement = select(User)
+    users = db_session.exec(user_statement).all()
+    
+    return {"has_users": len(users) > 0}
+
+
+@router.post("/signup")
+async def signup(
+    signup_data: SignupRequest,
+    db_session: Session = Depends(get_session)
+) -> LoginResponse:
+    """Initial admin signup (only works when no users exist in system)."""
+    
+    # Check if any users exist
+    user_statement = select(User)
+    existing_users = db_session.exec(user_statement).all()
+    
+    if len(existing_users) > 0:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Users already exist. Signup is disabled."
+        )
+    
+    # Hash the password
+    hashed_password = hashlib.sha256(signup_data.password.encode()).hexdigest()
+    
+    # Create admin user
+    new_user = User(
+        username=signup_data.username,
+        email=signup_data.email,
+        hashed_password=hashed_password,
+        role=UserRole.ADMIN,
+        is_active=True
+    )
+    
+    db_session.add(new_user)
+    db_session.commit()
+    db_session.refresh(new_user)
+    
+    # Generate tokens
+    token_generator = id_generator('tkn', 32)
+    refresh_generator = id_generator('ref', 32)
+    
+    access_token = token_generator()
+    refresh_token = refresh_generator()
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+    
+    # Create token record
+    new_token = Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_at=expires_at
+    )
+    
+    db_session.add(new_token)
+    db_session.commit()
+    db_session.refresh(new_token)
+    
+    # Link token to user
+    token_user = TokenUser(token_id=new_token.id, user_id=new_user.id)
+    db_session.add(token_user)
+    db_session.commit()
+    
+    # Return login response
+    return LoginResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        expires_at=expires_at,
+        user=UserResponse.model_validate(new_user)
+    )
 
 
 @router.post("/token")

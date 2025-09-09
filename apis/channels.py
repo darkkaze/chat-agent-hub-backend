@@ -1,14 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 from database import get_session
-from models.channels import Channel, UserChannelPermission
+from models.channels import Channel, UserChannelPermission, PlatformType
 from models.auth import Token
 from helpers.auth import get_auth_token, require_user_or_agent, can_access_all_channels, require_admin_or_agent
-from .schemas.channels import ChannelResponse, CreateChannelRequest
+from .schemas.channels import ChannelResponse, CreateChannelRequest, UpdateChannelRequest
 from apis.schemas.auth import MessageResponse
 from typing import List
 
 router = APIRouter(prefix="/channels", tags=["channels"])
+
+
+@router.get("/platforms")
+async def get_platform_types() -> List[str]:
+    """Get available platform types (no authentication required)."""
+    return [platform.value for platform in PlatformType]
 
 
 @router.get("")
@@ -64,7 +70,11 @@ async def create_channel(
     new_channel = Channel(
         name=channel_data.name,
         platform=channel_data.platform,
-        credentials=channel_data.credentials
+        credentials_to_send_message=channel_data.credentials_to_send_message,
+        api_to_send_message=channel_data.api_to_send_message,
+        buffer_time_seconds=channel_data.buffer_time_seconds,
+        history_msg_count=channel_data.history_msg_count,
+        recent_msg_window_minutes=channel_data.recent_msg_window_minutes
     )
     
     db_session.add(new_channel)
@@ -123,6 +133,50 @@ async def get_channel(
             )
     
     # Return channel data without sensitive credential information
+    return ChannelResponse.model_validate(channel)
+
+
+@router.put("/{channel_id}")
+async def update_channel(
+    channel_id: str,
+    channel_data: UpdateChannelRequest,
+    token: Token = Depends(get_auth_token),
+    db_session: Session = Depends(get_session)
+) -> ChannelResponse:
+    """Update channel information (admin and agent only)."""
+    
+    # Validate admin or agent access
+    await require_admin_or_agent(token=token, db_session=db_session)
+    
+    # Get the channel to update
+    channel_statement = select(Channel).where(Channel.id == channel_id)
+    channel = db_session.exec(channel_statement).first()
+    
+    if not channel:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Channel not found"
+        )
+    
+    # Update fields that are provided (only non-None values)
+    if channel_data.name is not None:
+        channel.name = channel_data.name
+    if channel_data.credentials_to_send_message is not None:
+        channel.credentials_to_send_message = channel_data.credentials_to_send_message
+    if channel_data.api_to_send_message is not None:
+        channel.api_to_send_message = channel_data.api_to_send_message
+    if channel_data.buffer_time_seconds is not None:
+        channel.buffer_time_seconds = channel_data.buffer_time_seconds
+    if channel_data.history_msg_count is not None:
+        channel.history_msg_count = channel_data.history_msg_count
+    if channel_data.recent_msg_window_minutes is not None:
+        channel.recent_msg_window_minutes = channel_data.recent_msg_window_minutes
+    
+    db_session.add(channel)
+    db_session.commit()
+    db_session.refresh(channel)
+    
+    # Return channel data without sensitive credentials
     return ChannelResponse.model_validate(channel)
 
 

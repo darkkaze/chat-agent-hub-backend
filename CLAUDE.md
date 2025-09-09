@@ -36,7 +36,7 @@ This is a FastAPI backend for an Agent Hub system that manages multi-platform ch
 **Communication:**
 
 - `Channel`: Platform connections (WhatsApp, Telegram, Instagram) with JSON credentials
-- `Chat`: Conversations with optional external_id and assigned users
+- `Chat`: Conversations with optional external_id, assigned users, and `last_message_ts` for activity tracking
 - `Message`: Individual messages with sender_type (CONTACT/USER/AGENT) and metadata
 
 **External Integration:**
@@ -57,11 +57,9 @@ This is a FastAPI backend for an Agent Hub system that manages multi-platform ch
 
 Each module uses `APIRouter` with appropriate prefixes and tags:
 
-- `auth.py`: Authentication (`/auth`)
-- `users.py`: User management (`/users`)
+- `auth.py`: Authentication (`/auth`) - includes user and agent endpoints
 - `channels.py`: Channel operations (`/channels`)
-- `chats.py`: Chat and messaging (`/chats`)
-- `agents.py`: External agent management (`/agents`)
+- `chats.py`: Chat and messaging - nested under channels (`/channels/{id}/chats`)
 - `webhooks.py`: Platform webhooks (`/webhooks`)
 - `boards.py`: Kanban boards (`/boards`)
 - `tasks.py`: Task operations (`/tasks`)
@@ -80,12 +78,14 @@ Each module uses `APIRouter` with appropriate prefixes and tags:
 **Start FastAPI server:**
 
 ```bash
+source .venv/bin/activate
 fastapi dev main.py
 ```
 
 **Start Celery worker:**
 
 ```bash
+source .venv/bin/activate
 celery -A worker worker --loglevel=info
 ```
 
@@ -115,6 +115,8 @@ celery -A worker worker --loglevel=info
 - Async functions with descriptive docstrings
 - Use `Depends(get_session)` for database access
 - Path parameters typed as `str` for custom IDs
+- Pagination with `limit` (default 50, max 100) and `offset` parameters
+- Chat endpoints ordered by `last_message_ts` descending
 
 **Unit Testing:**
 

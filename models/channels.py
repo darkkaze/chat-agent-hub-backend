@@ -10,6 +10,7 @@ from .auth import Agent
 class PlatformType(str, Enum):
     """Available platform types for channels."""
     WHATSAPP = "WHATSAPP"
+    WHATSAPP_TWILIO = "WHATSAPP_TWILIO"
     TELEGRAM = "TELEGRAM"
     INSTAGRAM = "INSTAGRAM"
 
@@ -26,7 +27,11 @@ class Channel(SQLModel, table=True):
     id: str = Field(default_factory=id_generator('channel', 10), primary_key=True)
     name: str = Field(index=True)
     platform: PlatformType
-    credentials: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    credentials_to_send_message: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
+    api_to_send_message: Optional[str] = Field(default=None)
+    buffer_time_seconds: int = Field(default=3)
+    history_msg_count: int = Field(default=40)
+    recent_msg_window_minutes: int = Field(default=60*24)
     
     # Relationships
     channel_agents: list["ChannelAgent"] = Relationship(back_populates="channel")

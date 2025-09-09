@@ -102,7 +102,8 @@ async def test_create_channel_admin_whatsapp_success(session):
     channel_data = CreateChannelRequest(
         name="WhatsApp Business",
         platform=PlatformType.WHATSAPP,
-        credentials={"phone": "+1234567890", "api_key": "secret_key"}
+        credentials_to_send_message={"phone": "+1234567890", "api_key": "secret_key"},
+        api_to_send_message="https://api.whatsapp.com/send"
     )
     
     result = await create_channel(
@@ -114,15 +115,20 @@ async def test_create_channel_admin_whatsapp_success(session):
     # Then the system creates the channel successfully
     assert result.name == "WhatsApp Business"
     assert result.platform == PlatformType.WHATSAPP
+    assert result.api_to_send_message == "https://api.whatsapp.com/send"
+    assert result.buffer_time_seconds == 3
+    assert result.history_msg_count == 40
+    assert result.recent_msg_window_minutes == 60*24
     assert result.id is not None
     # And returns channel information without credentials
-    assert not hasattr(result, 'credentials')
+    assert not hasattr(result, 'credentials_to_send_message')
     
     # And stores the channel with credentials in database
     channel_statement = select(Channel).where(Channel.id == result.id)
     stored_channel = session.exec(channel_statement).first()
     assert stored_channel is not None
-    assert stored_channel.credentials == {"phone": "+1234567890", "api_key": "secret_key"}
+    assert stored_channel.credentials_to_send_message == {"phone": "+1234567890", "api_key": "secret_key"}
+    assert stored_channel.api_to_send_message == "https://api.whatsapp.com/send"
 
 
 @pytest.mark.asyncio

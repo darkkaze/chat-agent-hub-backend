@@ -70,19 +70,21 @@ async def test_list_channels_admin_success(session):
     channel1 = Channel(
         name="WhatsApp Business",
         platform=PlatformType.WHATSAPP,
-        credentials={"phone": "+1234567890", "api_key": "secret"}
+        credentials_to_send_message={"phone": "+1234567890", "api_key": "secret"},
+        api_to_send_message="https://api.whatsapp.com/send"
     )
     
     channel2 = Channel(
         name="Telegram Bot",
         platform=PlatformType.TELEGRAM,
-        credentials={"bot_token": "secret_token"}
+        credentials_to_send_message={"bot_token": "secret_token"},
+        api_to_send_message="https://api.telegram.org/bot/sendMessage"
     )
     
     channel3 = Channel(
         name="Instagram Direct",
         platform=PlatformType.INSTAGRAM,
-        credentials={"access_token": "secret_access"}
+        credentials_to_send_message={"access_token": "secret_access"}
     )
     
     token = Token(

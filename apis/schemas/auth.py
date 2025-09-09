@@ -37,6 +37,13 @@ class CreateUserRequest(BaseModel):
     is_active: bool = Field(default=True, description="Whether the user is active")
 
 
+class SignupRequest(BaseModel):
+    """Schema for initial admin signup (only when no users exist)."""
+    username: str = Field(..., description="Admin username")
+    password: str = Field(..., description="Admin password")
+    email: Optional[str] = Field(default=None, description="Admin email address")
+
+
 class UpdateUserRequest(BaseModel):
     """Schema for updating user information."""
     username: Optional[str] = Field(default=None, description="New username")
