@@ -6,6 +6,7 @@ from models.channels import Channel, Chat, Message, SenderType
 from helpers.auth import get_auth_token, require_user_or_agent, require_admin_or_agent, check_channel_access
 from .schemas.chats import ChatResponse, MessageResponse, ChatListResponse, ChatMessagesResponse, AssignChatRequest, SendMessageRequest
 from typing import List, Optional, Dict, Any
+from outbound.message_sender import MessageSender
 
 router = APIRouter(tags=["channels"])
 
@@ -292,12 +293,18 @@ async def send_message(
         meta_data=message_data.meta_data
     )
     
-    # Update chat's last_message_ts
+    # Update chat's last_message_ts, last_sender_type, and last_message
     chat.last_message_ts = message.timestamp
+    chat.last_sender_type = sender_type
+    chat.last_message = message_data.content
     
     db_session.add(message)
     db_session.add(chat)
     db_session.commit()
     db_session.refresh(message)
+    
+    # Send message to external platform
+    sender = MessageSender(db_session)
+    await sender.send_to_platform(chat, message, channel)
     
     return MessageResponse.model_validate(message)

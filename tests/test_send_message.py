@@ -98,8 +98,8 @@ async def test_send_message_as_user(session):
     session.refresh(token)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     
     token_user = TokenUser(token_id=token.id, user_id=user.id)
@@ -145,7 +145,7 @@ async def test_send_message_as_agent(session):
     # Given an authenticated agent exists and a channel exists with a chat
     agent = Agent(
         name="Test Agent",
-        callback_url="https://agent.example.com/webhook",
+        webhook_url="https://agent.example.com/webhook",
         is_active=True
     )
     
@@ -168,8 +168,8 @@ async def test_send_message_as_agent(session):
     session.refresh(token)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     
     token_agent = TokenAgent(token_id=token.id, agent_id=agent.id)
@@ -237,8 +237,8 @@ async def test_send_message_with_metadata(session):
     session.refresh(token)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     
     token_user = TokenUser(token_id=token.id, user_id=user.id)
@@ -317,8 +317,8 @@ async def test_send_message_wrong_channel(session):
     
     # Create chat in channel1
     chat = Chat(
-        channel_id=channel1.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel1.id
     )
     
     token_user = TokenUser(token_id=token.id, user_id=user.id)
@@ -375,8 +375,8 @@ async def test_send_message_member_without_permission(session):
     session.refresh(token)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     
     token_user = TokenUser(token_id=token.id, user_id=member.id)
@@ -484,8 +484,8 @@ async def test_send_empty_message(session):
     session.refresh(token)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     
     token_user = TokenUser(token_id=token.id, user_id=user.id)
@@ -527,8 +527,8 @@ async def test_send_message_not_auth(session):
     session.refresh(channel)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     session.add(chat)
     session.commit()
@@ -581,8 +581,8 @@ async def test_send_message_updates_last_message_ts(session):
     session.refresh(token)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     
     token_user = TokenUser(token_id=token.id, user_id=user.id)

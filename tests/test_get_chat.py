@@ -95,9 +95,9 @@ async def test_get_chat_success(session):
     
     # Create chat with metadata
     chat = Chat(
+        name="Test Chat",
         external_id="ext_123",
         channel_id=channel.id,
-        contact_id="contact_1",
         assigned_user_id=assigned_user.id,
         meta_data={"contact_name": "John Doe", "phone": "+1234567890"}
     )
@@ -123,7 +123,7 @@ async def test_get_chat_success(session):
     assert result.id == chat.id
     assert result.external_id == "ext_123"
     assert result.channel_id == channel.id
-    assert result.contact_id == "contact_1"
+    # Note: contact_id field removed from model
     assert result.assigned_user_id == assigned_user.id
     assert result.meta_data["contact_name"] == "John Doe"
 
@@ -164,6 +164,7 @@ async def test_get_chat_wrong_channel(session):
     
     # Create chat in channel1
     chat = Chat(
+        name="Test Chat",
         channel_id=channel1.id,
         contact_id="contact_1"
     )
@@ -267,6 +268,7 @@ async def test_get_chat_member_without_permission(session):
     session.refresh(token)
     
     chat = Chat(
+        name="Test Chat",
         channel_id=channel.id,
         contact_id="contact_1"
     )
@@ -322,9 +324,9 @@ async def test_get_chat_member_with_permission(session):
     session.refresh(token)
     
     chat = Chat(
+        name="Test Chat",
         external_id="ext_456",
         channel_id=channel.id,
-        contact_id="contact_1",
         meta_data={"source": "website"}
     )
     
@@ -367,6 +369,7 @@ async def test_get_chat_not_auth(session):
     session.refresh(channel)
     
     chat = Chat(
+        name="Test Chat",
         channel_id=channel.id,
         contact_id="contact_1"
     )

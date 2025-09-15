@@ -90,8 +90,8 @@ async def test_get_chat_messages_success_default_pagination(session):
     session.refresh(token)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     
     session.add(chat)
@@ -174,8 +174,8 @@ async def test_get_chat_messages_with_pagination(session):
     session.refresh(token)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     
     session.add(chat)
@@ -258,8 +258,8 @@ async def test_get_chat_messages_wrong_channel(session):
     
     # Create chat with messages in channel1
     chat = Chat(
-        channel_id=channel1.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel1.id
     )
     
     session.add(chat)
@@ -322,8 +322,8 @@ async def test_get_chat_messages_empty_chat(session):
     session.refresh(token)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     
     token_user = TokenUser(token_id=token.id, user_id=user.id)
@@ -379,8 +379,8 @@ async def test_get_chat_messages_member_with_permission(session):
     session.refresh(token)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     
     session.add(chat)
@@ -445,8 +445,8 @@ async def test_get_chat_messages_member_without_permission(session):
     session.refresh(token)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     
     session.add(chat)
@@ -495,8 +495,8 @@ async def test_get_chat_messages_not_auth(session):
     session.refresh(channel)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     
     session.add(chat)
@@ -555,8 +555,8 @@ async def test_get_chat_messages_pagination_edge_cases(session):
     session.refresh(token)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     
     session.add(chat)

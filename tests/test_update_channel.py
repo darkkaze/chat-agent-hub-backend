@@ -124,9 +124,7 @@ async def test_update_channel_admin_name_success(session):
     assert result.name == "Updated Channel Name"
     assert result.platform == PlatformType.WHATSAPP
     assert result.api_to_send_message == "https://api.whatsapp.com/send"
-    assert result.buffer_time_seconds == 3  # Default values remain unchanged
-    assert result.history_msg_count == 40
-    assert result.recent_msg_window_minutes == 60*24
+    # Note: buffer_time_seconds, history_msg_count, and recent_msg_window_minutes moved to Agent model
     assert result.id == channel.id
 
 
@@ -252,10 +250,7 @@ async def test_update_channel_buffer_time_and_counts(session):
     channel = Channel(
         name="Config Channel",
         platform=PlatformType.WHATSAPP,
-        credentials_to_send_message={"phone": "+123"},
-        buffer_time_seconds=3,
-        history_msg_count=40,
-        recent_msg_window_minutes=60*24
+        credentials_to_send_message={"phone": "+123"}
     )
     
     token = Token(
@@ -279,9 +274,7 @@ async def test_update_channel_buffer_time_and_counts(session):
     token = await get_auth_token(authorization="Bearer admin_token", db_session=session)
     
     update_data = UpdateChannelRequest(
-        buffer_time_seconds=10,
-        history_msg_count=100,
-        recent_msg_window_minutes=120
+        name="Updated Config Channel"
     )
     
     result = await update_channel(
@@ -291,12 +284,10 @@ async def test_update_channel_buffer_time_and_counts(session):
         db_session=session
     )
 
-    # Then the system updates the configuration fields successfully
-    assert result.buffer_time_seconds == 10
-    assert result.history_msg_count == 100  
-    assert result.recent_msg_window_minutes == 120
+    # Then the system updates the name successfully
+    assert result.name == "Updated Config Channel"
     # Other fields remain unchanged
-    assert result.name == "Config Channel"
+    assert result.platform == PlatformType.WHATSAPP
     assert result.id == channel.id
 
 
@@ -305,7 +296,7 @@ async def test_update_channel_agent_success(session):
     # Given an agent is authenticated and a channel exists
     agent = Agent(
         name="Test Agent",
-        callback_url="https://agent.test/hook"
+        webhook_url="https://agent.test/hook"
     )
     
     channel = Channel(

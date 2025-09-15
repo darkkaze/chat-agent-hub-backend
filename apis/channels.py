@@ -71,10 +71,7 @@ async def create_channel(
         name=channel_data.name,
         platform=channel_data.platform,
         credentials_to_send_message=channel_data.credentials_to_send_message,
-        api_to_send_message=channel_data.api_to_send_message,
-        buffer_time_seconds=channel_data.buffer_time_seconds,
-        history_msg_count=channel_data.history_msg_count,
-        recent_msg_window_minutes=channel_data.recent_msg_window_minutes
+        api_to_send_message=channel_data.api_to_send_message
     )
     
     db_session.add(new_channel)
@@ -165,12 +162,7 @@ async def update_channel(
         channel.credentials_to_send_message = channel_data.credentials_to_send_message
     if channel_data.api_to_send_message is not None:
         channel.api_to_send_message = channel_data.api_to_send_message
-    if channel_data.buffer_time_seconds is not None:
-        channel.buffer_time_seconds = channel_data.buffer_time_seconds
-    if channel_data.history_msg_count is not None:
-        channel.history_msg_count = channel_data.history_msg_count
-    if channel_data.recent_msg_window_minutes is not None:
-        channel.recent_msg_window_minutes = channel_data.recent_msg_window_minutes
+    # Note: buffer_time_seconds, history_msg_count, recent_msg_window_minutes moved to Agent model
     
     db_session.add(channel)
     db_session.commit()
@@ -209,12 +201,7 @@ async def delete_channel(
     for permission in permissions:
         db_session.delete(permission)
     
-    # Delete ChannelAgent records
-    from models.channels import ChannelAgent
-    channel_agent_statement = select(ChannelAgent).where(ChannelAgent.channel_id == channel_id)
-    channel_agents = db_session.exec(channel_agent_statement).all()
-    for channel_agent in channel_agents:
-        db_session.delete(channel_agent)
+    # Note: ChannelAgent records removed per model changes
     
     # Delete the channel itself
     db_session.delete(channel)

@@ -116,9 +116,7 @@ async def test_create_channel_admin_whatsapp_success(session):
     assert result.name == "WhatsApp Business"
     assert result.platform == PlatformType.WHATSAPP
     assert result.api_to_send_message == "https://api.whatsapp.com/send"
-    assert result.buffer_time_seconds == 3
-    assert result.history_msg_count == 40
-    assert result.recent_msg_window_minutes == 60*24
+    # Note: buffer_time_seconds, history_msg_count, recent_msg_window_minutes moved to Agent model
     assert result.id is not None
     # And returns channel information without credentials
     assert not hasattr(result, 'credentials_to_send_message')

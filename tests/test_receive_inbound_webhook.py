@@ -150,6 +150,7 @@ async def test_receive_webhook_existing_chat(session):
     
     # And an existing chat
     existing_chat = Chat(
+        name="Test Chat",
         external_id="+1234567890",
         channel_id=channel.id,
         last_message_ts=datetime.utcnow(),

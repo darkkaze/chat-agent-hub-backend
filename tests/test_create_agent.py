@@ -16,9 +16,9 @@ Scenario: Admin successfully creates an agent with channel association
 Scenario: Admin creates agent with minimal data
   Given an admin user is authenticated
   And a channel exists in the system
-  When they create an agent with only name, callback_url and channel_id
+  When they create an agent with only name, webhook_url and channel_id
   Then the system creates the agent with defaults
-  And is_fire_and_forget defaults to False
+  And fire_and_forget defaults to False
   And is_active defaults to True
 
 Scenario: Admin tries to create agent with non-existent channel
@@ -40,7 +40,7 @@ Scenario: Unauthenticated user tries to create agent
 import pytest
 from sqlmodel import create_engine, Session, SQLModel, select
 from models.auth import User, Token, TokenUser, UserRole, Agent
-from models.channels import Channel, PlatformType, ChannelAgent
+from models.channels import Channel, PlatformType
 from database import get_session
 from apis.auth import create_agent
 from apis.schemas.auth import CreateAgentRequest
@@ -94,27 +94,19 @@ async def test_create_agent_success(session):
     
     agent_data = CreateAgentRequest(
         name="Customer Support Bot",
-        callback_url="https://api.example.com/webhook",
-        is_fire_and_forget=True,
-        channel_id=channel.id
+        webhook_url="https://api.example.com/webhook"
     )
     
     result = await create_agent(agent_data=agent_data, token=token, db_session=session)
 
     # Then the system creates the agent successfully
     assert result.name == "Customer Support Bot"
-    assert result.callback_url == "https://api.example.com/webhook"
-    assert result.is_fire_and_forget == True
+    assert result.webhook_url == "https://api.example.com/webhook"
+    assert result.is_fire_and_forget == False
     assert result.is_active == True
     assert result.id.startswith("agent_")
     
-    # And associates the agent to the specified channel
-    channel_agent_statement = select(ChannelAgent).where(
-        ChannelAgent.agent_id == result.id,
-        ChannelAgent.channel_id == channel.id
-    )
-    channel_agent = session.exec(channel_agent_statement).first()
-    assert channel_agent is not None
+    # Note: ChannelAgent associations removed per model changes
 
 
 @pytest.mark.asyncio
@@ -153,7 +145,7 @@ async def test_create_agent_minimal_data(session):
     
     agent_data = CreateAgentRequest(
         name="Simple Bot",
-        callback_url="https://simple.bot/hook",
+        webhook_url="https://simple.bot/hook",
         channel_id=channel.id
     )
     
@@ -161,7 +153,7 @@ async def test_create_agent_minimal_data(session):
 
     # Then the system creates agent with defaults
     assert result.name == "Simple Bot"
-    assert result.callback_url == "https://simple.bot/hook"
+    assert result.webhook_url == "https://simple.bot/hook"
     assert result.is_fire_and_forget == False  # Default
     assert result.is_active == True  # Default
 
@@ -196,7 +188,7 @@ async def test_create_agent_without_channel(session):
     
     agent_data = CreateAgentRequest(
         name="Standalone Bot",
-        callback_url="https://standalone.bot/hook"
+        webhook_url="https://standalone.bot/hook"
         # No channel_id provided
     )
     
@@ -204,14 +196,11 @@ async def test_create_agent_without_channel(session):
 
     # Then the system creates agent without channel association
     assert result.name == "Standalone Bot"
-    assert result.callback_url == "https://standalone.bot/hook"
+    assert result.webhook_url == "https://standalone.bot/hook"
     assert result.is_fire_and_forget == False  # Default
     assert result.is_active == True  # Default
     
-    # Verify no channel association exists
-    channel_agent_statement = select(ChannelAgent).where(ChannelAgent.agent_id == result.id)
-    channel_agent = session.exec(channel_agent_statement).first()
-    assert channel_agent is None
+    # Note: ChannelAgent associations removed per model changes
 
 
 @pytest.mark.asyncio
@@ -244,7 +233,7 @@ async def test_create_agent_channel_not_found(session):
     
     agent_data = CreateAgentRequest(
         name="Test Bot",
-        callback_url="https://test.bot/hook",
+        webhook_url="https://test.bot/hook",
         channel_id="channel_nonexistent"
     )
     
@@ -292,7 +281,7 @@ async def test_create_agent_non_admin_forbidden(session):
     
     agent_data = CreateAgentRequest(
         name="Unauthorized Bot",
-        callback_url="https://bad.bot/hook",
+        webhook_url="https://bad.bot/hook",
         channel_id=channel.id
     )
     
@@ -317,7 +306,7 @@ async def test_create_agent_not_auth(session):
     
     agent_data = CreateAgentRequest(
         name="Unauthorized Bot",
-        callback_url="https://bad.bot/hook", 
+        webhook_url="https://bad.bot/hook", 
         channel_id=channel.id
     )
 

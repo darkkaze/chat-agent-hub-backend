@@ -7,12 +7,15 @@ from models.channels import SenderType
 class ChatResponse(BaseModel):
     """Response model for chat information."""
     id: str
+    name: str
     external_id: Optional[str] = None
     channel_id: str
-    contact_id: Optional[str] = None
     assigned_user_id: Optional[str] = None
     last_message_ts: datetime
+    last_sender_type: Optional[SenderType] = None
+    last_message: Optional[str] = None
     meta_data: Dict[str, Any] = Field(default_factory=dict)
+    extra_data: Dict[str, Any] = Field(default_factory=dict)
     
     class Config:
         from_attributes = True

@@ -89,8 +89,8 @@ async def test_delete_chat_soft_delete_admin(session):
     session.refresh(token)
     
     chat = Chat(
+        name="Test Chat",
         channel_id=channel.id,
-        contact_id="contact_1",
         meta_data={"important": "data"}
     )
     
@@ -151,8 +151,8 @@ async def test_delete_chat_hard_delete_admin(session):
     session.refresh(token)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     
     session.add(chat)
@@ -231,8 +231,8 @@ async def test_delete_chat_agent_success(session):
     session.refresh(token)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     
     token_agent = TokenAgent(token_id=token.id, agent_id=agent.id)
@@ -291,8 +291,8 @@ async def test_delete_chat_member_forbidden(session):
     session.refresh(token)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     
     token_user = TokenUser(token_id=token.id, user_id=user.id)
@@ -356,8 +356,8 @@ async def test_delete_chat_wrong_channel(session):
     
     # Create chat in channel1
     chat = Chat(
-        channel_id=channel1.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel1.id
     )
     
     token_user = TokenUser(token_id=token.id, user_id=user.id)
@@ -440,8 +440,8 @@ async def test_delete_chat_not_auth(session):
     session.refresh(channel)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     session.add(chat)
     session.commit()

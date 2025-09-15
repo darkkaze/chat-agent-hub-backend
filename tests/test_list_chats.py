@@ -92,14 +92,14 @@ async def test_list_chats_success_admin(session):
     
     # Create chats in the channel
     chat1 = Chat(
+        name="Test Chat",
         external_id="ext_1",
-        channel_id=channel.id,
-        contact_id="contact_1"
+        channel_id=channel.id
     )
     chat2 = Chat(
+        name="Test Chat",
         external_id="ext_2", 
         channel_id=channel.id,
-        contact_id="contact_2",
         assigned_user_id=user.id
     )
     
@@ -173,18 +173,18 @@ async def test_list_chats_filter_by_assigned_user(session):
     
     # Create chats assigned to different users
     chat1 = Chat(
+        name="Test Chat",
         channel_id=channel.id,
-        contact_id="contact_1",
         assigned_user_id=user1.id
     )
     chat2 = Chat(
+        name="Test Chat",
         channel_id=channel.id,
-        contact_id="contact_2",
         assigned_user_id=user2.id
     )
     chat3 = Chat(
+        name="Test Chat",
         channel_id=channel.id,
-        contact_id="contact_3",
         assigned_user_id=user1.id
     )
     
@@ -250,18 +250,18 @@ async def test_list_chats_filter_by_assignment_status(session):
     
     # Create both assigned and unassigned chats
     chat1 = Chat(
+        name="Test Chat",
         channel_id=channel.id,
-        contact_id="contact_1",
         assigned_user_id=user1.id
     )
     chat2 = Chat(
-        channel_id=channel.id,
-        contact_id="contact_2"
+        name="Test Chat",
+        channel_id=channel.id
         # No assigned_user_id - unassigned
     )
     chat3 = Chat(
-        channel_id=channel.id,
-        contact_id="contact_3"
+        name="Test Chat",
+        channel_id=channel.id
         # No assigned_user_id - unassigned  
     )
     
@@ -319,8 +319,8 @@ async def test_list_chats_member_without_permission(session):
     session.refresh(token)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     
     token_user = TokenUser(token_id=token.id, user_id=user.id)
@@ -376,8 +376,8 @@ async def test_list_chats_member_with_permission(session):
     session.refresh(token)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     
     token_user = TokenUser(token_id=token.id, user_id=user.id)
@@ -465,8 +465,8 @@ async def test_list_chats_not_auth(session):
     session.refresh(channel)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     session.add(chat)
     session.commit()
@@ -523,18 +523,18 @@ async def test_list_chats_ordered_by_last_message_ts(session):
     newest_time = datetime.now(timezone.utc)
     
     chat_old = Chat(
+        name="Test Chat",
         channel_id=channel.id,
-        contact_id="contact_old",
         last_message_ts=old_time
     )
     chat_recent = Chat(
-        channel_id=channel.id,
-        contact_id="contact_recent", 
+        name="Test Chat",
+        channel_id=channel.id, 
         last_message_ts=recent_time
     )
     chat_newest = Chat(
+        name="Test Chat",
         channel_id=channel.id,
-        contact_id="contact_newest",
         last_message_ts=newest_time
     )
     
@@ -559,9 +559,6 @@ async def test_list_chats_ordered_by_last_message_ts(session):
 
     # Then the system returns chats ordered by last_message_ts descending (newest first)
     assert len(result.chats) == 3
-    assert result.chats[0].contact_id == "contact_newest"
-    assert result.chats[1].contact_id == "contact_recent"
-    assert result.chats[2].contact_id == "contact_old"
     
     # Verify timestamps are in descending order
     assert result.chats[0].last_message_ts >= result.chats[1].last_message_ts
@@ -599,8 +596,8 @@ async def test_list_chats_pagination(session):
     chats = []
     for i in range(25):
         chat = Chat(
-            channel_id=channel.id,
-            contact_id=f"contact_{i+1}"
+            name="Test Chat",
+            channel_id=channel.id
         )
         chats.append(chat)
     

@@ -16,7 +16,7 @@ from database import engine, get_session
 from settings import logger
 from models.auth import User, UserRole, Agent, Token, TokenUser, TokenAgent
 # Import all models to ensure tables are created
-from models.channels import Channel, UserChannelPermission, Chat, Message, ChannelAgent, ChatAgent
+from models.channels import Channel, UserChannelPermission, Chat, Message
 from models.boards import Board, Task
 from models.documents import Document, ChatDocument, TaskDocument
 from models.notes import Note, ChatNote, TaskNote

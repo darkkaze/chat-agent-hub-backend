@@ -28,7 +28,8 @@ class WhatsAppTwilioHandler(WebhookHandler):
         chat = await self._get_or_create_chat(
             channel_id=channel_id,
             external_id=message_data["from_number"],
-            contact_phone=message_data["from_number"]
+            contact_phone=message_data["from_number"],
+            contact_name=message_data.get("profile_name", message_data["from_number"])
         )
         
         # Handle different message types
@@ -45,7 +46,7 @@ class WhatsAppTwilioHandler(WebhookHandler):
         else:
             message_content = f"[{message_type.upper()} Message] {message_data.get('media_url', '')}"
         
-        # Create message
+        # Create message with enhanced Twilio metadata
         new_message = Message(
             external_id=message_data.get("message_sid"),
             chat_id=chat.id,
@@ -56,15 +57,24 @@ class WhatsAppTwilioHandler(WebhookHandler):
                 "twilio_sid": message_data.get("message_sid"),
                 "from_number": message_data["from_number"],
                 "to_number": message_data["to_number"],
+                "profile_name": message_data.get("profile_name"),
                 "message_type": message_type,
-                "media_url": message_data.get("media_url")
+                "media_url": message_data.get("media_url"),
+                "twilio_account_sid": data.get("AccountSid"),
+                "twilio_messaging_service_sid": data.get("MessagingServiceSid"),
+                "num_segments": data.get("NumSegments", "1"),
+                "sms_status": data.get("SmsStatus"),
+                "message_body_raw": data.get("Body"),
+                "webhook_received_at": datetime.utcnow().isoformat()
             }
         )
         
         self.session.add(new_message)
         
-        # Update chat's last_message_ts
+        # Update chat's last_message_ts, last_sender_type, and last_message
         chat.last_message_ts = message_data["timestamp"]
+        chat.last_sender_type = SenderType.CONTACT
+        chat.last_message = message_content
         self.session.add(chat)
         
         self.session.commit()
@@ -104,6 +114,7 @@ class WhatsAppTwilioHandler(WebhookHandler):
         from_number = data.get("From", "").replace("whatsapp:", "")
         to_number = data.get("To", "").replace("whatsapp:", "")
         message_sid = data.get("MessageSid", "")
+        profile_name = data.get("ProfileName", "")  # Contact's WhatsApp profile name
         
         # Timestamp (Twilio doesn't always provide timestamp, use current time)
         timestamp = datetime.utcnow()
@@ -131,13 +142,14 @@ class WhatsAppTwilioHandler(WebhookHandler):
             "from_number": from_number,
             "to_number": to_number,
             "message_sid": message_sid,
+            "profile_name": profile_name,
             "timestamp": timestamp,
             "message_type": message_type,
             "text_content": text_content,
             "media_url": media_url
         }
     
-    async def _get_or_create_chat(self, channel_id: str, external_id: str, contact_phone: str) -> Chat:
+    async def _get_or_create_chat(self, channel_id: str, external_id: str, contact_phone: str, contact_name: str) -> Chat:
         """Get existing chat or create new one."""
         
         # Try to find existing chat by external_id and channel
@@ -150,14 +162,21 @@ class WhatsAppTwilioHandler(WebhookHandler):
         if existing_chat:
             return existing_chat
         
-        # Create new chat
+        # Create new chat with enhanced metadata
         new_chat = Chat(
+            name=contact_name or f"WhatsApp {contact_phone}",
             external_id=external_id,
             channel_id=channel_id,
             last_message_ts=datetime.utcnow(),
             meta_data={
                 "contact_phone": contact_phone,
-                "platform": "whatsapp_twilio"
+                "platform": "whatsapp_twilio",
+                "profile_name": contact_name
+            },
+            extra_data={
+                "twilio_integration": True,
+                "contact_verified": False,
+                "conversation_started": datetime.utcnow().isoformat()
             }
         )
         

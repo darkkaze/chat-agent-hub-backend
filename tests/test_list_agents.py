@@ -47,21 +47,21 @@ async def test_list_agents_success(session):
     # Given a valid token and agents with different statuses
     active_agent1 = Agent(
         name="Active Bot 1",
-        callback_url="https://active1.bot/hook",
+        webhook_url="https://active1.bot/hook",
         is_fire_and_forget=False,
         is_active=True
     )
     
     active_agent2 = Agent(
         name="Active Bot 2", 
-        callback_url="https://active2.bot/hook",
+        webhook_url="https://active2.bot/hook",
         is_fire_and_forget=True,
         is_active=True
     )
     
     inactive_agent = Agent(
         name="Inactive Bot",
-        callback_url="https://inactive.bot/hook",
+        webhook_url="https://inactive.bot/hook",
         is_fire_and_forget=False,
         is_active=False
     )
@@ -91,7 +91,7 @@ async def test_list_agents_success(session):
     for agent in result:
         assert hasattr(agent, 'id')
         assert hasattr(agent, 'name') 
-        assert hasattr(agent, 'callback_url')
+        assert hasattr(agent, 'webhook_url')
         assert hasattr(agent, 'is_fire_and_forget')
         assert hasattr(agent, 'is_active')
         assert agent.is_active == True
@@ -102,19 +102,19 @@ async def test_list_agents_inactive(session):
     # Given agents with different statuses
     active_agent = Agent(
         name="Active Bot",
-        callback_url="https://active.bot/hook",
+        webhook_url="https://active.bot/hook",
         is_active=True
     )
     
     inactive_agent1 = Agent(
         name="Inactive Bot 1",
-        callback_url="https://inactive1.bot/hook", 
+        webhook_url="https://inactive1.bot/hook", 
         is_active=False
     )
     
     inactive_agent2 = Agent(
         name="Inactive Bot 2",
-        callback_url="https://inactive2.bot/hook",
+        webhook_url="https://inactive2.bot/hook",
         is_active=False
     )
     
@@ -170,7 +170,7 @@ async def test_list_agents_not_auth(session):
     # Given agents exist but invalid token
     agent = Agent(
         name="Test Bot",
-        callback_url="https://test.bot/hook"
+        webhook_url="https://test.bot/hook"
     )
     session.add(agent)
     session.commit()

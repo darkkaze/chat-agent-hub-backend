@@ -40,7 +40,7 @@ Scenario: Unauthenticated user tries to delete agent
 import pytest
 from sqlmodel import create_engine, Session, SQLModel, select
 from models.auth import User, Token, TokenUser, UserRole, Agent
-from models.channels import Channel, PlatformType, ChannelAgent
+from models.channels import Channel, PlatformType
 from database import get_session
 from apis.auth import delete_agent
 from datetime import datetime, timedelta
@@ -144,9 +144,7 @@ async def test_delete_agent_hard_delete_success(session):
     session.refresh(target_agent)
     session.refresh(token)
     
-    # Create channel association
-    channel_agent = ChannelAgent(channel_id=channel.id, agent_id=target_agent.id)
-    session.add(channel_agent)
+    # Note: ChannelAgent associations removed per model changes
     
     token_user = TokenUser(token_id=token.id, user_id=admin_user.id)
     session.add(token_user)
@@ -171,11 +169,7 @@ async def test_delete_agent_hard_delete_success(session):
     db_agent = session.exec(agent_statement).first()
     assert db_agent is None
     
-    # Verify channel associations are also removed
-    associations = session.exec(
-        select(ChannelAgent).where(ChannelAgent.agent_id == target_agent.id)
-    ).all()
-    assert len(associations) == 0
+    # Note: ChannelAgent associations removed per model changes
 
 
 @pytest.mark.asyncio
@@ -324,10 +318,7 @@ async def test_delete_agent_hard_delete_multiple_associations(session):
     session.refresh(agent)
     session.refresh(token)
     
-    # Create multiple channel associations
-    association1 = ChannelAgent(channel_id=channel1.id, agent_id=agent.id)
-    association2 = ChannelAgent(channel_id=channel2.id, agent_id=agent.id)
-    session.add_all([association1, association2])
+    # Note: ChannelAgent associations removed per model changes
     
     token_user = TokenUser(token_id=token.id, user_id=admin_user.id)
     session.add(token_user)
@@ -352,8 +343,4 @@ async def test_delete_agent_hard_delete_multiple_associations(session):
     db_agent = session.exec(agent_statement).first()
     assert db_agent is None
     
-    # Verify all associations are gone
-    associations = session.exec(
-        select(ChannelAgent).where(ChannelAgent.agent_id == agent.id)
-    ).all()
-    assert len(associations) == 0
+    # Note: ChannelAgent associations removed per model changes

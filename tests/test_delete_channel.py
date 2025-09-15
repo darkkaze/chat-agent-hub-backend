@@ -50,7 +50,7 @@ Scenario: Delete channel with associated agent relationships
 import pytest
 from sqlmodel import create_engine, Session, SQLModel, select
 from models.auth import User, Agent, Token, TokenUser, TokenAgent, UserRole
-from models.channels import Channel, UserChannelPermission, PlatformType, ChannelAgent
+from models.channels import Channel, UserChannelPermission, PlatformType
 from database import get_session
 from apis.channels import delete_channel
 from datetime import datetime, timezone, timedelta
@@ -329,10 +329,7 @@ async def test_delete_channel_with_agent_associations(session):
     token_user = TokenUser(token_id=token.id, user_id=admin_user.id)
     session.add(token_user)
     
-    # Create ChannelAgent associations
-    channel_agent1 = ChannelAgent(channel_id=channel.id, agent_id=agent1.id)
-    channel_agent2 = ChannelAgent(channel_id=channel.id, agent_id=agent2.id)
-    session.add_all([channel_agent1, channel_agent2])
+    # Note: ChannelAgent associations removed per model changes
     session.commit()
 
     # When they delete the channel
@@ -348,7 +345,4 @@ async def test_delete_channel_with_agent_associations(session):
     deleted_channel = session.exec(channel_statement).first()
     assert deleted_channel is None
     
-    # And removes all associated ChannelAgent records
-    channel_agent_statement = select(ChannelAgent).where(ChannelAgent.channel_id == channel.id)
-    channel_agents = session.exec(channel_agent_statement).all()
-    assert len(channel_agents) == 0
+    # Note: ChannelAgent records removed per model changes

@@ -21,9 +21,12 @@ class LoginResponse(BaseModel):
 class CreateAgentRequest(BaseModel):
     """Schema for creating a new external agent."""
     name: str = Field(..., description="Agent name")
-    callback_url: str = Field(..., description="URL where the agent will receive callbacks")
-    channel_id: Optional[str] = Field(default=None, description="Channel ID to associate the agent with (optional)")
+    webhook_url: str = Field(..., description="URL where the agent will receive webhooks")
     is_fire_and_forget: bool = Field(default=False, description="Whether the agent operates in fire-and-forget mode")
+    buffer_time_seconds: int = Field(default=3, description="Buffer time in seconds")
+    history_msg_count: int = Field(default=40, description="Number of history messages to include")
+    recent_msg_window_minutes: int = Field(default=60*24, description="Recent message window in minutes")
+    activate_for_new_conversation: bool = Field(default=False, description="Whether agent activates for new conversations")
     is_active: bool = Field(default=True, description="Whether the agent is active")
 
 
@@ -57,9 +60,12 @@ class UpdateUserRequest(BaseModel):
 class UpdateAgentRequest(BaseModel):
     """Schema for updating agent information."""
     name: Optional[str] = Field(default=None, description="New agent name")
-    callback_url: Optional[str] = Field(default=None, description="New callback URL")
-    channel_id: Optional[str] = Field(default=None, description="New channel ID to associate the agent with")
+    webhook_url: Optional[str] = Field(default=None, description="New webhook URL")
     is_fire_and_forget: Optional[bool] = Field(default=None, description="New fire-and-forget mode setting")
+    buffer_time_seconds: Optional[int] = Field(default=None, description="New buffer time in seconds")
+    history_msg_count: Optional[int] = Field(default=None, description="New number of history messages to include")
+    recent_msg_window_minutes: Optional[int] = Field(default=None, description="New recent message window in minutes")
+    activate_for_new_conversation: Optional[bool] = Field(default=None, description="New activate for new conversation setting")
     is_active: Optional[bool] = Field(default=None, description="New active status")
 
 
@@ -80,8 +86,12 @@ class AgentResponse(BaseModel):
     """Schema for agent responses."""
     id: str = Field(..., description="Agent ID")
     name: str = Field(..., description="Agent name")
-    callback_url: str = Field(..., description="Agent callback URL")
+    webhook_url: str = Field(..., description="Agent webhook URL")
     is_fire_and_forget: bool = Field(..., description="Whether the agent operates in fire-and-forget mode")
+    buffer_time_seconds: int = Field(..., description="Buffer time in seconds")
+    history_msg_count: int = Field(..., description="Number of history messages to include")
+    recent_msg_window_minutes: int = Field(..., description="Recent message window in minutes")
+    activate_for_new_conversation: bool = Field(..., description="Whether agent activates for new conversations")
     is_active: bool = Field(..., description="Whether the agent is active")
 
     model_config = {"from_attributes": True}  # Allows Pydantic to work with SQLModel objects

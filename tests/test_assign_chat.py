@@ -99,8 +99,8 @@ async def test_assign_chat_success(session):
     
     # Create unassigned chat
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
         # No assigned_user_id - unassigned
     )
     
@@ -178,8 +178,8 @@ async def test_reassign_chat(session):
     
     # Create chat assigned to user_a
     chat = Chat(
+        name="Test Chat",
         channel_id=channel.id,
-        contact_id="contact_1",
         assigned_user_id=user_a.id
     )
     
@@ -256,8 +256,8 @@ async def test_assign_chat_wrong_channel(session):
     
     # Create chat in channel1
     chat = Chat(
-        channel_id=channel1.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel1.id
     )
     
     token_user = TokenUser(token_id=token.id, user_id=admin.id)
@@ -314,8 +314,8 @@ async def test_assign_chat_nonexistent_user(session):
     session.refresh(token)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     
     token_user = TokenUser(token_id=token.id, user_id=admin.id)
@@ -379,8 +379,8 @@ async def test_assign_chat_member_with_permission(session):
     session.refresh(token)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     
     token_user = TokenUser(token_id=token.id, user_id=member.id)
@@ -443,8 +443,8 @@ async def test_assign_chat_member_without_permission(session):
     session.refresh(token)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     
     token_user = TokenUser(token_id=token.id, user_id=member.id)
@@ -494,8 +494,8 @@ async def test_assign_chat_not_auth(session):
     session.refresh(team_user)
     
     chat = Chat(
-        channel_id=channel.id,
-        contact_id="contact_1"
+        name="Test Chat",
+        channel_id=channel.id
     )
     session.add(chat)
     session.commit()

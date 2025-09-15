@@ -72,6 +72,7 @@ async def test_create_task_with_all_fields(session):
     session.refresh(channel)
     
     chat = Chat(
+        name="Test Chat",
         channel_id=channel.id,
         external_id="ext_chat_123"
     )

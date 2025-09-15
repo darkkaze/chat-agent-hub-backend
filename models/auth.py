@@ -32,13 +32,17 @@ class Agent(SQLModel, table=True):
     """External service or bot that can manage conversations."""
     id: str = Field(default_factory=id_generator('agent', 10), primary_key=True)
     name: str = Field(index=True)
-    callback_url: str
+    webhook_url: Optional[str] = Field(default=None)
     is_fire_and_forget: bool = Field(default=False)
+    buffer_time_seconds: int = Field(default=3)
+    history_msg_count: int = Field(default=40)
+    recent_msg_window_minutes: int = Field(default=60*24)
+    activate_for_new_conversation: bool = Field(default=False)
+
     is_active: bool = Field(default=True)
     
     # Relationships
     token_agents: List["TokenAgent"] = Relationship(back_populates="agent")
-    channel_agents: List["ChannelAgent"] = Relationship(back_populates="agent")
     chat_agents: List["ChatAgent"] = Relationship(back_populates="agent")
 
 

@@ -29,12 +29,6 @@ class Channel(SQLModel, table=True):
     platform: PlatformType
     credentials_to_send_message: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
     api_to_send_message: Optional[str] = Field(default=None)
-    buffer_time_seconds: int = Field(default=3)
-    history_msg_count: int = Field(default=40)
-    recent_msg_window_minutes: int = Field(default=60*24)
-    
-    # Relationships
-    channel_agents: list["ChannelAgent"] = Relationship(back_populates="channel")
 
 
 class UserChannelPermission(SQLModel, table=True):
@@ -46,13 +40,15 @@ class UserChannelPermission(SQLModel, table=True):
 class Chat(SQLModel, table=True):
     """Conversation with a Contact within a Channel."""
     id: str = Field(default_factory=id_generator('chat', 10), primary_key=True)
+    name: str = Field(index=True)
     external_id: Optional[str] = Field(default=None, index=True)
     channel_id: str = Field(foreign_key="channel.id", index=True)
-    contact_id: Optional[str] = Field(default=None, index=True)
     assigned_user_id: Optional[str] = Field(default=None, foreign_key="user.id", index=True)
     last_message_ts: datetime = Field(default_factory=datetime.utcnow, index=True)
+    last_sender_type: Optional[SenderType] = Field(default=None, index=True)
+    last_message: Optional[str] = Field(default=None)
     meta_data: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
-    
+    extra_data: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     # Relationships
     chat_agents: list["ChatAgent"] = Relationship(back_populates="chat")
 
@@ -68,15 +64,6 @@ class Message(SQLModel, table=True):
     meta_data: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     readed: bool = Field(default=False)
 
-class ChannelAgent(SQLModel, table=True):
-    """Junction table linking channels to agents."""
-    id: str = Field(default_factory=id_generator('chanagent', 10), primary_key=True)
-    channel_id: str = Field(foreign_key="channel.id", index=True)
-    agent_id: str = Field(foreign_key="agent.id", index=True)
-    
-    # Relationships
-    agent: Optional["Agent"] = Relationship(back_populates="channel_agents")
-    channel: Optional[Channel] = Relationship(back_populates="channel_agents")
 
 
 class ChatAgent(SQLModel, table=True):
