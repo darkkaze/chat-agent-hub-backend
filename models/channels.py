@@ -81,7 +81,8 @@ class ChatAgent(SQLModel, table=True):
     id: str = Field(default_factory=id_generator('chatagent', 10), primary_key=True)
     chat_id: str = Field(foreign_key="chat.id", index=True)
     agent_id: str = Field(foreign_key="agent.id", index=True)
-    
+    active: bool = Field(default=True, index=True)
+
     # Relationships
     agent: Optional["Agent"] = Relationship(back_populates="chat_agents")
     chat: Optional[Chat] = Relationship(back_populates="chat_agents")
