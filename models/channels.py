@@ -22,6 +22,15 @@ class SenderType(str, Enum):
     AGENT = "AGENT"
 
 
+class DeliveryStatus(str, Enum):
+    """Message delivery status for external platforms."""
+    PENDING = "PENDING"
+    SENT = "SENT"
+    DELIVERED = "DELIVERED"
+    READ = "READ"
+    FAILED = "FAILED"
+
+
 class Channel(SQLModel, table=True):
     """Represents each connection point (WhatsApp number, Telegram account, etc.)."""
     id: str = Field(default_factory=id_generator('channel', 10), primary_key=True)
@@ -63,6 +72,7 @@ class Message(SQLModel, table=True):
     timestamp: datetime = Field(default_factory=datetime.utcnow, index=True)
     meta_data: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     readed: bool = Field(default=False)
+    delivery_status: Optional[DeliveryStatus] = Field(default=None, index=True)
 
 
 

@@ -1,7 +1,7 @@
 from typing import Dict, Any, Optional
 from sqlmodel import select
 from datetime import datetime
-from models.channels import Chat, Message, SenderType, Channel
+from models.channels import Chat, Message, SenderType, Channel, DeliveryStatus
 from .base import WebhookHandler
 from settings import logger
 
@@ -10,17 +10,26 @@ class WhatsAppTwilioHandler(WebhookHandler):
     """Handler for WhatsApp messages via Twilio webhook."""
     
     async def process_inbound(self, data: Dict[str, Any], channel_id: str) -> Dict[str, Any]:
-        """Process inbound WhatsApp message from Twilio webhook."""
-        
+        """Process inbound WhatsApp webhook from Twilio (message or status)."""
+
         logger.info("Processing WhatsApp Twilio webhook", extra={
             "channel_id": channel_id,
             "data_keys": list(data.keys())
         })
-        
+
         # Validate payload
         if not self.validate_payload(data):
             raise ValueError("Invalid WhatsApp Twilio payload")
-        
+
+        # Detect webhook type
+        if self.is_status_webhook(data):
+            return await self.process_status_update(data, channel_id)
+        else:
+            return await self.process_message(data, channel_id)
+
+    async def process_message(self, data: Dict[str, Any], channel_id: str) -> Dict[str, Any]:
+        """Process inbound WhatsApp message."""
+
         # Extract message data
         message_data = self.extract_message_data(data)
         
@@ -53,6 +62,7 @@ class WhatsAppTwilioHandler(WebhookHandler):
             content=message_content,
             sender_type=SenderType.CONTACT,
             timestamp=message_data["timestamp"],
+            delivery_status=DeliveryStatus.SENT,  # Messages received via webhook are already sent
             meta_data={
                 "twilio_sid": message_data.get("message_sid"),
                 "from_number": message_data["from_number"],
@@ -93,17 +103,106 @@ class WhatsAppTwilioHandler(WebhookHandler):
             "message_id": new_message.id,
             "message_type": message_type
         }
-    
+
+    async def process_status_update(self, data: Dict[str, Any], channel_id: str) -> Dict[str, Any]:
+        """Process WhatsApp message status update."""
+
+        message_sid = data.get("MessageSid")
+        message_status = data.get("MessageStatus")
+
+        logger.info("Processing WhatsApp status update", extra={
+            "channel_id": channel_id,
+            "message_sid": message_sid,
+            "status": message_status
+        })
+
+        # Find the existing message by external_id (MessageSid)
+        message_statement = select(Message).where(Message.external_id == message_sid)
+        existing_message = self.session.exec(message_statement).first()
+
+        if not existing_message:
+            logger.warning("Message not found for status update", extra={
+                "message_sid": message_sid,
+                "status": message_status
+            })
+            return {
+                "status": "warning",
+                "message": f"Message {message_sid} not found for status update"
+            }
+
+        # Map Twilio status to our DeliveryStatus
+        status_mapping = {
+            "sent": DeliveryStatus.SENT,
+            "delivered": DeliveryStatus.DELIVERED,
+            "read": DeliveryStatus.READ,
+            "failed": DeliveryStatus.FAILED
+        }
+
+        new_delivery_status = status_mapping.get(message_status.lower())
+        if not new_delivery_status:
+            logger.warning("Unknown message status", extra={
+                "message_sid": message_sid,
+                "status": message_status
+            })
+            return {
+                "status": "warning",
+                "message": f"Unknown status: {message_status}"
+            }
+
+        # Update the message delivery status
+        existing_message.delivery_status = new_delivery_status
+
+        # Update metadata with status update info
+        existing_message.meta_data = {
+            **existing_message.meta_data,
+            "last_status_update": datetime.utcnow().isoformat(),
+            "twilio_status_history": existing_message.meta_data.get("twilio_status_history", []) + [
+                {
+                    "status": message_status,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            ]
+        }
+
+        self.session.add(existing_message)
+        self.session.commit()
+        self.session.refresh(existing_message)
+
+        logger.info("WhatsApp status updated successfully", extra={
+            "message_id": existing_message.id,
+            "message_sid": message_sid,
+            "new_status": new_delivery_status
+        })
+
+        return {
+            "status": "success",
+            "message_id": existing_message.id,
+            "message_sid": message_sid,
+            "delivery_status": new_delivery_status
+        }
+
+    def is_status_webhook(self, data: Dict[str, Any]) -> bool:
+        """Check if this is a status webhook (not a message webhook)."""
+        # Status webhooks have MessageStatus and MessageSid but no Body
+        return "MessageStatus" in data and "MessageSid" in data and "Body" not in data
+
     def validate_payload(self, data: Dict[str, Any]) -> bool:
-        """Validate Twilio WhatsApp webhook payload."""
-        required_fields = ["From", "To", "Body"]
-        
+        """Validate Twilio WhatsApp webhook payload (message or status)."""
+
+        # Check for status webhook
+        if self.is_status_webhook(data):
+            status_required_fields = ["MessageSid", "MessageStatus", "From", "To"]
+            return all(field in data for field in status_required_fields)
+
+        # Check for message webhook
+        message_required_fields = ["From", "To", "Body"]
+
         # Check for basic text message fields
-        has_basic_fields = all(field in data for field in required_fields)
-        
+        has_basic_fields = all(field in data for field in message_required_fields)
+
         # Check for media message (voice, image, etc.)
         has_media = "MediaUrl0" in data and "MediaContentType0" in data
-        
+
         # Valid if either text or media message
         return has_basic_fields or (has_media and "From" in data and "To" in data)
     

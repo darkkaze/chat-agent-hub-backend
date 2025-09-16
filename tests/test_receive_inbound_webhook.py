@@ -2,7 +2,7 @@ import pytest
 from sqlmodel import create_engine, Session, SQLModel
 from fastapi import Request
 from datetime import datetime
-from models.channels import Channel, Chat, Message, PlatformType, SenderType
+from models.channels import Channel, Chat, Message, PlatformType, SenderType, DeliveryStatus
 from models.auth import User, UserRole, Agent, Token
 from database import get_session
 from apis.webhooks import receive_inbound_webhook
@@ -82,6 +82,7 @@ async def test_receive_whatsapp_text_message_success(session):
     assert created_message is not None
     assert created_message.content == "Hello, this is a test message!"
     assert created_message.sender_type == SenderType.CONTACT
+    assert created_message.delivery_status == DeliveryStatus.SENT
     assert created_message.chat_id == created_chat.id
     assert created_message.meta_data["from_number"] == "+1234567890"
     assert created_message.meta_data["twilio_sid"] == "SM1234567890abcdef1234567890abcdef"
@@ -130,6 +131,7 @@ async def test_receive_whatsapp_voice_message_success(session):
     assert "[Voice Message]" in created_message.content
     assert "https://api.twilio.com/voice.ogg" in created_message.content
     assert created_message.sender_type == SenderType.CONTACT
+    assert created_message.delivery_status == DeliveryStatus.SENT
     assert created_message.meta_data["message_type"] == "voice"
     assert created_message.meta_data["media_url"] == "https://api.twilio.com/voice.ogg"
 
@@ -317,3 +319,4 @@ async def test_receive_webhook_json_content_type(session):
     # And create the message
     created_message = session.get(Message, result["message_id"])
     assert created_message.content == "JSON message"
+    assert created_message.delivery_status == DeliveryStatus.SENT

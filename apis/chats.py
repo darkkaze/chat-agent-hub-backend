@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select, desc
 from database import get_session
 from models.auth import Token, User
-from models.channels import Channel, Chat, Message, SenderType
+from models.channels import Channel, Chat, Message, SenderType, DeliveryStatus
 from helpers.auth import get_auth_token, require_user_or_agent, require_admin_or_agent, check_channel_access
 from .schemas.chats import ChatResponse, MessageResponse, ChatListResponse, ChatMessagesResponse, AssignChatRequest, SendMessageRequest
 from typing import List, Optional, Dict, Any
@@ -290,6 +290,7 @@ async def send_message(
         chat_id=chat_id,
         content=message_data.content,
         sender_type=sender_type,
+        delivery_status=DeliveryStatus.PENDING,  # Outbound messages start as pending
         meta_data=message_data.meta_data
     )
     

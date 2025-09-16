@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-from models.channels import SenderType
+from models.channels import SenderType, DeliveryStatus
 
 
 class ChatResponse(BaseModel):
@@ -31,6 +31,7 @@ class MessageResponse(BaseModel):
     timestamp: datetime
     meta_data: Dict[str, Any] = Field(default_factory=dict)
     readed: bool
+    delivery_status: Optional[DeliveryStatus] = None
     
     class Config:
         from_attributes = True

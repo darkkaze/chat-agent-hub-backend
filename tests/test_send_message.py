@@ -54,7 +54,7 @@ Scenario: Send empty message
 import pytest
 from sqlmodel import create_engine, Session, SQLModel, select
 from models.auth import User, Token, TokenUser, TokenAgent, UserRole, Agent
-from models.channels import Channel, Chat, Message, UserChannelPermission, PlatformType, SenderType
+from models.channels import Channel, Chat, Message, UserChannelPermission, PlatformType, SenderType, DeliveryStatus
 from database import get_session
 from apis.chats import send_message
 from apis.schemas.chats import SendMessageRequest
@@ -129,15 +129,17 @@ async def test_send_message_as_user(session):
     assert result.sender_type == SenderType.USER
     assert result.content == "Hello from user!"
     assert result.chat_id == chat.id
+    assert result.delivery_status == DeliveryStatus.PENDING
     assert result.meta_data["source"] == "web"
     assert result.timestamp is not None
     assert result.id is not None
-    
+
     # Verify in database
     message_statement = select(Message).where(Message.id == result.id)
     stored_message = session.exec(message_statement).first()
     assert stored_message is not None
     assert stored_message.sender_type == SenderType.USER
+    assert stored_message.delivery_status == DeliveryStatus.PENDING
 
 
 @pytest.mark.asyncio
@@ -199,14 +201,16 @@ async def test_send_message_as_agent(session):
     assert result.sender_type == SenderType.AGENT
     assert result.content == "Hello from agent!"
     assert result.chat_id == chat.id
+    assert result.delivery_status == DeliveryStatus.PENDING
     assert result.meta_data["agent_version"] == "1.0"
     assert result.timestamp is not None
-    
+
     # Verify in database
     message_statement = select(Message).where(Message.id == result.id)
     stored_message = session.exec(message_statement).first()
     assert stored_message is not None
     assert stored_message.sender_type == SenderType.AGENT
+    assert stored_message.delivery_status == DeliveryStatus.PENDING
 
 
 @pytest.mark.asyncio
