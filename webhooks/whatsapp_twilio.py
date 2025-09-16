@@ -1,9 +1,11 @@
 from typing import Dict, Any, Optional
 from sqlmodel import select
 from datetime import datetime
-from models.channels import Chat, Message, SenderType, Channel, DeliveryStatus
+from models.channels import Chat, Message, SenderType, Channel, DeliveryStatus, ChatAgent
+from models.auth import Agent
 from .base import WebhookHandler
 from settings import logger
+from tasks.agent_tasks import process_chat_message
 
 
 class WhatsAppTwilioHandler(WebhookHandler):
@@ -96,7 +98,11 @@ class WhatsAppTwilioHandler(WebhookHandler):
             "message_id": new_message.id,
             "message_type": message_type
         })
-        
+
+        # Process message through agents (only for CONTACT messages)
+        if new_message.sender_type == SenderType.CONTACT:
+            await self._process_message_with_agents(new_message, message_content)
+
         return {
             "status": "success",
             "chat_id": chat.id,
@@ -282,9 +288,97 @@ class WhatsAppTwilioHandler(WebhookHandler):
         self.session.add(new_chat)
         self.session.commit()
         self.session.refresh(new_chat)
-        
+
+        # Auto-assign agents to new chat
+        await self._assign_agents_to_new_chat(new_chat)
+
         return new_chat
-    
+
+    async def _assign_agents_to_new_chat(self, chat: Chat) -> None:
+        """Auto-assign eligible agents to new chat."""
+
+        # Find agents that should be assigned to new conversations
+        agent_statement = select(Agent).where(
+            Agent.activate_for_new_conversation == True,
+            Agent.webhook_url.is_not(None),
+            Agent.is_active == True
+        )
+        eligible_agents = self.session.exec(agent_statement).all()
+
+        if not eligible_agents:
+            logger.info("No eligible agents found for new chat", extra={"chat_id": chat.id})
+            return
+
+        # Create ChatAgent links for each eligible agent
+        chat_agents_created = []
+        for agent in eligible_agents:
+            chat_agent = ChatAgent(
+                chat_id=chat.id,
+                agent_id=agent.id
+            )
+            self.session.add(chat_agent)
+            chat_agents_created.append(agent.id)
+
+        self.session.commit()
+
+        logger.info("Agents auto-assigned to new chat", extra={
+            "chat_id": chat.id,
+            "assigned_agents": chat_agents_created,
+            "agent_count": len(chat_agents_created)
+        })
+
+    async def _process_message_with_agents(self, message: Message, content: str) -> None:
+        """Send message to agents via Celery tasks."""
+
+        # Get all ChatAgent relationships for this chat
+        chat_agent_statement = select(ChatAgent).where(ChatAgent.chat_id == message.chat_id)
+        chat_agents = self.session.exec(chat_agent_statement).all()
+
+        if not chat_agents:
+            logger.info("No agents assigned to chat", extra={
+                "chat_id": message.chat_id,
+                "message_id": message.id
+            })
+            return
+
+        # Send Celery task for each ChatAgent
+        tasks_sent = []
+        for chat_agent in chat_agents:
+            try:
+                # Send async task to Celery
+                task = process_chat_message.delay(
+                    chat_agent_id=chat_agent.id,
+                    message_id=message.id,
+                    content=content
+                )
+                tasks_sent.append({
+                    "chat_agent_id": chat_agent.id,
+                    "agent_id": chat_agent.agent_id,
+                    "task_id": task.id
+                })
+
+                logger.info("Celery task sent for agent", extra={
+                    "chat_agent_id": chat_agent.id,
+                    "agent_id": chat_agent.agent_id,
+                    "message_id": message.id,
+                    "task_id": task.id
+                })
+
+            except Exception as e:
+                logger.error("Failed to send Celery task", extra={
+                    "chat_agent_id": chat_agent.id,
+                    "agent_id": chat_agent.agent_id,
+                    "message_id": message.id,
+                    "error": str(e)
+                })
+
+        logger.info("Message processing tasks sent to agents", extra={
+            "chat_id": message.chat_id,
+            "message_id": message.id,
+            "tasks_sent_count": len(tasks_sent),
+            "tasks_sent": tasks_sent
+        })
+
     async def _process_voice_message(self, message_data: Dict[str, Any]) -> None:
         """Process voice message for speech-to-text conversion."""
         
