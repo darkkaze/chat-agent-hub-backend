@@ -1,5 +1,5 @@
 from sqlmodel import SQLModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 from .helper import id_generator
 
 
@@ -9,7 +9,7 @@ class Document(SQLModel, table=True):
     file_url: str
     file_name: str = Field(index=True)
     mime_type: str
-    uploaded_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    uploaded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
     uploaded_by_user_id: str = Field(foreign_key="user.id", index=True)
 
 

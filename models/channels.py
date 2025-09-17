@@ -2,7 +2,7 @@ from sqlmodel import SQLModel, Field, Column, Relationship
 from sqlalchemy import JSON
 from enum import Enum
 from typing import Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from .helper import id_generator
 from .auth import Agent
 
@@ -53,7 +53,7 @@ class Chat(SQLModel, table=True):
     external_id: Optional[str] = Field(default=None, index=True)
     channel_id: str = Field(foreign_key="channel.id", index=True)
     assigned_user_id: Optional[str] = Field(default=None, foreign_key="user.id", index=True)
-    last_message_ts: datetime = Field(default_factory=datetime.utcnow, index=True)
+    last_message_ts: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
     last_sender_type: Optional[SenderType] = Field(default=None, index=True)
     last_message: Optional[str] = Field(default=None)
     meta_data: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
@@ -69,7 +69,7 @@ class Message(SQLModel, table=True):
     chat_id: str = Field(foreign_key="chat.id", index=True)
     content: str
     sender_type: SenderType
-    timestamp: datetime = Field(default_factory=datetime.utcnow, index=True)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
     meta_data: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     readed: bool = Field(default=False)
     delivery_status: Optional[DeliveryStatus] = Field(default=None, index=True)

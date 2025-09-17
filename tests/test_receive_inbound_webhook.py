@@ -1,7 +1,7 @@
 import pytest
 from sqlmodel import create_engine, Session, SQLModel
 from fastapi import Request
-from datetime import datetime
+from datetime import datetime, timezone
 from models.channels import Channel, Chat, Message, PlatformType, SenderType, DeliveryStatus
 from models.auth import User, UserRole, Agent, Token
 from database import get_session
@@ -155,7 +155,7 @@ async def test_receive_webhook_existing_chat(session):
         name="Test Chat",
         external_id="+1234567890",
         channel_id=channel.id,
-        last_message_ts=datetime.utcnow(),
+        last_message_ts=datetime.now(timezone.utc),
         meta_data={"contact_phone": "+1234567890"}
     )
     session.add(existing_chat)
@@ -185,7 +185,11 @@ async def test_receive_webhook_existing_chat(session):
     
     # And update the last_message_ts
     session.refresh(existing_chat)
-    assert existing_chat.last_message_ts > datetime.utcnow().replace(microsecond=0)
+    # Handle timezone comparison - database might store naive datetime
+    last_message_ts = existing_chat.last_message_ts
+    if last_message_ts.tzinfo is None:
+        last_message_ts = last_message_ts.replace(tzinfo=timezone.utc)
+    assert last_message_ts > datetime.now(timezone.utc).replace(microsecond=0)
 
 
 @pytest.mark.asyncio

@@ -1,7 +1,7 @@
 from sqlmodel import SQLModel, Field, Relationship
 from enum import Enum
 from typing import Optional, List, TYPE_CHECKING
-from datetime import datetime
+from datetime import datetime, timezone
 from .helper import id_generator
 
 if TYPE_CHECKING:
@@ -53,7 +53,7 @@ class Token(SQLModel, table=True):
     access_token: str = Field(unique=True, index=True)
     refresh_token: Optional[str] = Field(default=None, unique=True, index=True)
     expires_at: datetime
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     is_revoked: bool = Field(default=False)
     
     # Relationships

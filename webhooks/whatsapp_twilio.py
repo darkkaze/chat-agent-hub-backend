@@ -1,6 +1,6 @@
 from typing import Dict, Any, Optional
 from sqlmodel import select
-from datetime import datetime
+from datetime import datetime, timezone
 from models.channels import Chat, Message, SenderType, Channel, DeliveryStatus, ChatAgent
 from models.auth import Agent
 from .base import WebhookHandler
@@ -77,7 +77,7 @@ class WhatsAppTwilioHandler(WebhookHandler):
                 "num_segments": data.get("NumSegments", "1"),
                 "sms_status": data.get("SmsStatus"),
                 "message_body_raw": data.get("Body"),
-                "webhook_received_at": datetime.utcnow().isoformat()
+                "webhook_received_at": datetime.now(timezone.utc).isoformat()
             }
         )
         
@@ -102,6 +102,9 @@ class WhatsAppTwilioHandler(WebhookHandler):
         # Process message through agents (only for CONTACT messages)
         if new_message.sender_type == SenderType.CONTACT:
             await self._process_message_with_agents(new_message, message_content)
+
+        # Notify via WebSocket about new message
+        await self._notify_websocket_new_message(chat, new_message, message_content, message_type)
 
         return {
             "status": "success",
@@ -161,11 +164,11 @@ class WhatsAppTwilioHandler(WebhookHandler):
         # Update metadata with status update info
         existing_message.meta_data = {
             **existing_message.meta_data,
-            "last_status_update": datetime.utcnow().isoformat(),
+            "last_status_update": datetime.now(timezone.utc).isoformat(),
             "twilio_status_history": existing_message.meta_data.get("twilio_status_history", []) + [
                 {
                     "status": message_status,
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             ]
         }
@@ -222,7 +225,7 @@ class WhatsAppTwilioHandler(WebhookHandler):
         profile_name = data.get("ProfileName", "")  # Contact's WhatsApp profile name
         
         # Timestamp (Twilio doesn't always provide timestamp, use current time)
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(timezone.utc)
         
         # Determine message type and content
         message_type = "text"
@@ -272,7 +275,7 @@ class WhatsAppTwilioHandler(WebhookHandler):
             name=contact_name or f"WhatsApp {contact_phone}",
             external_id=external_id,
             channel_id=channel_id,
-            last_message_ts=datetime.utcnow(),
+            last_message_ts=datetime.now(timezone.utc),
             meta_data={
                 "contact_phone": contact_phone,
                 "platform": "whatsapp_twilio",
@@ -281,7 +284,7 @@ class WhatsAppTwilioHandler(WebhookHandler):
             extra_data={
                 "twilio_integration": True,
                 "contact_verified": False,
-                "conversation_started": datetime.utcnow().isoformat()
+                "conversation_started": datetime.now(timezone.utc).isoformat()
             }
         )
         
@@ -381,7 +384,7 @@ class WhatsAppTwilioHandler(WebhookHandler):
 
     async def _process_voice_message(self, message_data: Dict[str, Any]) -> None:
         """Process voice message for speech-to-text conversion."""
-        
+
         # TODO: Implement speech-to-text processing
         # This will be implemented later
         # For now, just log the voice message
@@ -390,3 +393,45 @@ class WhatsAppTwilioHandler(WebhookHandler):
             "from_number": message_data.get("from_number")
         })
         pass
+
+    async def _notify_websocket_new_message(self, chat: Chat, message: Message, content: str, message_type: str) -> None:
+        """Send WebSocket notification about new message."""
+
+        try:
+            from websockets.manager import manager
+            import json
+
+            # Create preview of message content
+            preview = content[:100] + "..." if len(content) > 100 else content
+
+            # Prepare notification payload
+            notification_payload = {
+                "type": "new_message",
+                "chat_id": chat.id,
+                "channel_id": chat.channel_id,
+                "message_id": message.id,
+                "sender_type": message.sender_type.value,
+                "timestamp": message.timestamp.isoformat(),
+                "message_type": message_type,
+                "preview": preview,
+                "external_id": message.external_id,
+                "chat_name": chat.name,
+                "chat_external_id": chat.external_id
+            }
+
+            # Broadcast to all connected WebSocket clients
+            await manager.broadcast(json.dumps(notification_payload))
+
+            logger.info("WebSocket notification sent for new message", extra={
+                "chat_id": chat.id,
+                "message_id": message.id,
+                "active_connections": manager.get_connection_count()
+            })
+
+        except Exception as e:
+            # Don't fail the webhook if WebSocket notification fails
+            logger.error("Failed to send WebSocket notification", extra={
+                "chat_id": chat.id,
+                "message_id": message.id,
+                "error": str(e)
+            })
