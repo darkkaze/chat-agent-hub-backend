@@ -35,8 +35,12 @@ FastAPI backend for Agent Hub system that manages multi-platform chat conversati
 - `Message`: Messages with sender detection (CONTACT/USER/AGENT)
 - `ChatAgent`: Links agents to specific conversations
 
-**Real-time:**
-- WebSocket notifications for new messages
+**Real-time WebSocket (`ws_service/`):**
+- WebSocket connection manager for real-time notifications
+- Notifications triggered from:
+  - Webhook message processing (contact messages)
+  - API message sending (agent messages)
+- Broadcast system for multiple connected clients
 - Agent message processing with buffer algorithms
 
 ## Development Setup
@@ -78,9 +82,16 @@ python simple_agent_pingpong.py
 
 **Key Features:**
 - Agent token authentication with automatic generation
-- WebSocket notifications for agent messages
+- Real-time WebSocket notifications from multiple sources:
+  - Inbound webhooks (contact messages from platforms)
+  - API calls (agent responses via `/chats/{id}/messages`)
 - Platform webhook processing (WhatsApp Twilio, etc.)
 - Celery background tasks for agent message processing
+
+**WebSocket Notification Sources:**
+- `webhooks/whatsapp_twilio.py`: `_notify_websocket_new_message()` for contact messages
+- `apis/chats.py`: `_notify_websocket_new_message()` for agent messages
+- Payload format: `{type: "new_message", chat_id, message_id, sender_type, preview, ...}`
 
 ## Testing
 
