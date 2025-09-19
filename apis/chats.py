@@ -7,6 +7,8 @@ from helpers.auth import get_auth_token, require_user_or_agent, require_admin_or
 from .schemas.chats import ChatResponse, MessageResponse, ChatListResponse, ChatMessagesResponse, AssignChatRequest, SendMessageRequest
 from typing import List, Optional, Dict, Any
 from outbound.message_sender import MessageSender
+from settings import logger
+import json
 
 router = APIRouter(tags=["channels"])
 
@@ -284,7 +286,13 @@ async def send_message(
     token_agent = db_session.exec(token_agent_statement).first()
     
     sender_type = SenderType.AGENT if token_agent else SenderType.USER
-    
+
+    logger.info("Creating message with sender type", extra={
+        "sender_type": sender_type.value,
+        "token_agent_found": bool(token_agent),
+        "token_id": token.id
+    })
+
     # Create message
     message = Message(
         chat_id=chat_id,
@@ -307,5 +315,55 @@ async def send_message(
     # Send message to external platform
     sender = MessageSender(db_session)
     await sender.send_to_platform(chat, message, channel)
-    
+
+    # Send WebSocket notification for agent messages
+    if sender_type == SenderType.AGENT:
+        await _notify_websocket_new_message(chat, message, message_data.content)
+
     return MessageResponse.model_validate(message)
+
+
+async def _notify_websocket_new_message(chat: Chat, message: Message, content: str) -> None:
+    """Send WebSocket notification about new message from API."""
+    try:
+        from ws_service.manager import manager
+
+        logger.info("Sending WebSocket notification for API message", extra={
+            "chat_id": chat.id,
+            "message_id": message.id,
+            "sender_type": message.sender_type.value
+        })
+
+        # Create preview of message content
+        preview = content[:100] + "..." if len(content) > 100 else content
+
+        # Prepare notification payload
+        notification_payload = {
+            "type": "new_message",
+            "chat_id": chat.id,
+            "channel_id": chat.channel_id,
+            "message_id": message.id,
+            "sender_type": message.sender_type.value,
+            "timestamp": message.timestamp.isoformat(),
+            "message_type": "agent",
+            "preview": preview,
+            "external_id": message.external_id,
+            "chat_name": chat.name,
+            "chat_external_id": chat.external_id
+        }
+
+        # Broadcast to all connected WebSocket clients
+        await manager.broadcast(json.dumps(notification_payload))
+
+        logger.info("WebSocket notification sent successfully", extra={
+            "chat_id": chat.id,
+            "connections": manager.get_connection_count()
+        })
+
+    except Exception as e:
+        # Don't fail the API call if WebSocket notification fails
+        logger.error("Failed to send WebSocket notification", extra={
+            "chat_id": chat.id,
+            "message_id": message.id,
+            "error": str(e)
+        })

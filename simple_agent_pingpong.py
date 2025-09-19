@@ -38,10 +38,18 @@ class WebhookPayload(BaseModel):
 
 
 def get_access_token():
-    """Get first available access token from SQLite database."""
+    """Get first available agent access token from SQLite database."""
     conn = sqlite3.connect('agent_hub.db')
     cursor = conn.cursor()
-    cursor.execute("SELECT access_token FROM token WHERE is_revoked = 0 ORDER BY created_at DESC LIMIT 1")
+    # Join with TokenAgent to get agent-specific tokens
+    cursor.execute("""
+        SELECT t.access_token
+        FROM token t
+        INNER JOIN tokenagent ta ON t.id = ta.token_id
+        WHERE t.is_revoked = 0 AND t.expires_at > datetime('now')
+        ORDER BY t.created_at DESC
+        LIMIT 1
+    """)
     result = cursor.fetchone()
     conn.close()
     return result[0] if result else None
@@ -116,7 +124,7 @@ async def agent_webhook(payload: WebhookPayload):
         print()
 
     print("Full JSON payload:")
-    print(json.dumps(payload.dict(), indent=2))
+    print(json.dumps(payload.model_dump(), indent=2))
     print("=" * 50)
 
     # Send pong message via API

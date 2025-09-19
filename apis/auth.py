@@ -340,9 +340,33 @@ async def create_agent(
     db_session.add(new_agent)
     db_session.commit()
     db_session.refresh(new_agent)
-    
+
+    # Generate tokens for agent
+    token_generator = id_generator('tkn', 32)
+    refresh_generator = id_generator('ref', 32)
+
+    access_token = token_generator()
+    refresh_token = refresh_generator()
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=24*365)  # 1 year expiry for agents
+
+    # Create token record
+    new_token = Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_at=expires_at
+    )
+
+    db_session.add(new_token)
+    db_session.commit()
+    db_session.refresh(new_token)
+
+    # Link token to agent
+    token_agent = TokenAgent(token_id=new_token.id, agent_id=new_agent.id)
+    db_session.add(token_agent)
+    db_session.commit()
+
     # Note: Channel-Agent association removed per model changes
-    
+
     return AgentResponse.model_validate(new_agent)
 
 
