@@ -93,12 +93,6 @@ class WhatsAppTwilioHandler(WebhookHandler):
         self.session.refresh(new_message)
         self.session.refresh(chat)
         
-        logger.info("WhatsApp message processed successfully", extra={
-            "chat_id": chat.id,
-            "message_id": new_message.id,
-            "message_type": message_type
-        })
-
         # Process message through agents (only for CONTACT messages)
         if new_message.sender_type == SenderType.CONTACT:
             await self._process_message_with_agents(new_message, message_content)
@@ -177,10 +171,9 @@ class WhatsAppTwilioHandler(WebhookHandler):
         self.session.commit()
         self.session.refresh(existing_message)
 
-        logger.info("WhatsApp status updated successfully", extra={
+        logger.debug("Status updated", extra={
             "message_id": existing_message.id,
-            "message_sid": message_sid,
-            "new_status": new_delivery_status
+            "status": new_delivery_status
         })
 
         return {
@@ -324,10 +317,9 @@ class WhatsAppTwilioHandler(WebhookHandler):
 
         self.session.commit()
 
-        logger.info("Agents auto-assigned to new chat", extra={
+        logger.debug("Agents auto-assigned", extra={
             "chat_id": chat.id,
-            "assigned_agents": chat_agents_created,
-            "agent_count": len(chat_agents_created)
+            "count": len(chat_agents_created)
         })
 
     async def _process_message_with_agents(self, message: Message, content: str) -> None:
@@ -338,10 +330,6 @@ class WhatsAppTwilioHandler(WebhookHandler):
         chat_agents = self.session.exec(chat_agent_statement).all()
 
         if not chat_agents:
-            logger.info("No agents assigned to chat", extra={
-                "chat_id": message.chat_id,
-                "message_id": message.id
-            })
             return
 
         # Send Celery task for each ChatAgent
@@ -360,27 +348,18 @@ class WhatsAppTwilioHandler(WebhookHandler):
                     "task_id": task.id
                 })
 
-                logger.info("Celery task sent for agent", extra={
-                    "chat_agent_id": chat_agent.id,
-                    "agent_id": chat_agent.agent_id,
-                    "message_id": message.id,
-                    "task_id": task.id
-                })
-
             except Exception as e:
-                logger.error("Failed to send Celery task", extra={
+                logger.error("Celery task failed", extra={
                     "chat_agent_id": chat_agent.id,
                     "agent_id": chat_agent.agent_id,
-                    "message_id": message.id,
                     "error": str(e)
                 })
 
-        logger.info("Message processing tasks sent to agents", extra={
-            "chat_id": message.chat_id,
-            "message_id": message.id,
-            "tasks_sent_count": len(tasks_sent),
-            "tasks_sent": tasks_sent
-        })
+        if tasks_sent:
+            logger.info("Tasks sent to agents", extra={
+                "chat_id": message.chat_id,
+                "count": len(tasks_sent)
+            })
 
     async def _process_voice_message(self, message_data: Dict[str, Any]) -> None:
         """Process voice message for speech-to-text conversion."""
@@ -388,8 +367,7 @@ class WhatsAppTwilioHandler(WebhookHandler):
         # TODO: Implement speech-to-text processing
         # This will be implemented later
         # For now, just log the voice message
-        logger.info("Voice message received - speech2text not implemented yet", extra={
-            "media_url": message_data.get("media_url"),
+        logger.debug("Voice message received", extra={
             "from_number": message_data.get("from_number")
         })
         pass
@@ -398,7 +376,7 @@ class WhatsAppTwilioHandler(WebhookHandler):
         """Send WebSocket notification about new message."""
 
         try:
-            from websockets.manager import manager
+            from ws_service.manager import manager
             import json
 
             # Create preview of message content
@@ -422,10 +400,9 @@ class WhatsAppTwilioHandler(WebhookHandler):
             # Broadcast to all connected WebSocket clients
             await manager.broadcast(json.dumps(notification_payload))
 
-            logger.info("WebSocket notification sent for new message", extra={
+            logger.debug("WebSocket notification sent", extra={
                 "chat_id": chat.id,
-                "message_id": message.id,
-                "active_connections": manager.get_connection_count()
+                "connections": manager.get_connection_count()
             })
 
         except Exception as e:

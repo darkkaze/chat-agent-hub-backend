@@ -1,4 +1,3 @@
-from celery import Celery
 from sqlmodel import Session, select
 from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any
@@ -9,8 +8,8 @@ from models.channels import ChatAgent, Chat, Message
 from models.auth import Agent
 from database import engine
 
-# This will be properly configured later
-celery_app = Celery('agent_hub')
+# Import configured Celery app from worker
+from worker import celery_app
 
 
 def _get_recent_messages(chat_id: str, history_msg_count: int, recent_msg_window_minutes: int) -> List[Message]:
@@ -96,8 +95,10 @@ def _send_to_agent_webhook(webhook_url: str, payload: Dict[str, Any], max_retrie
 def agent_callback(chat_id: str, agent_id: str, message_data: dict):
     """Process agent callback response (dummy implementation)."""
     # TODO: Implement actual agent callback processing
-    print(f"Processing agent callback for chat {chat_id} from agent {agent_id}")
-    print(f"Message data: {message_data}")
+    logger.debug("Agent callback received", extra={
+        "chat_id": chat_id,
+        "agent_id": agent_id
+    })
     return {"status": "processed", "chat_id": chat_id, "agent_id": agent_id}
 
 

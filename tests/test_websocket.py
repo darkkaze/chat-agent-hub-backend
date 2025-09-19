@@ -26,7 +26,7 @@ from fastapi.testclient import TestClient
 from fastapi.websockets import WebSocket
 from unittest.mock import patch, AsyncMock
 from main import app
-from websockets.manager import manager
+from ws_service.manager import manager
 
 
 class TestWebSocket:
@@ -97,7 +97,7 @@ class TestWebSocket:
                 assert ack_message["subscribed_to"] == ["channel_123", "channel_456"]
 
     @pytest.mark.asyncio
-    @patch('websockets.manager.manager.broadcast')
+    @patch('ws_service.manager.manager.broadcast')
     async def test_manager_broadcast(self, mock_broadcast):
         """Test manager broadcast functionality."""
         mock_broadcast.return_value = AsyncMock()

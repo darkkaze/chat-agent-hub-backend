@@ -3,7 +3,7 @@ from typing import Generator
 import redis
 from settings import DATABASE_URL, REDIS_URL
 
-engine = create_engine(DATABASE_URL, echo=True)
+engine = create_engine(DATABASE_URL, echo=False)
 redis_client = redis.from_url(REDIS_URL, decode_responses=True)
 
 

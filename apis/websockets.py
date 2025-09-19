@@ -1,5 +1,5 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from websockets.manager import manager
+from ws_service.manager import manager
 from settings import logger
 import json
 
