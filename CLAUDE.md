@@ -16,6 +16,7 @@ FastAPI backend for Agent Hub system that manages multi-platform chat conversati
 - SQLModel with SQLite backend (`agent_hub.db`)
 - Redis for Celery broker/backend
 - Dependency injection: `session: Session = Depends(get_session)`
+- Management commands in `manage.py` for database operations
 
 **Models (`models/`)**
 - Custom ID generation: `{prefix}_{10_random_chars}` using `id_generator()`
@@ -44,6 +45,20 @@ FastAPI backend for Agent Hub system that manages multi-platform chat conversati
 - Agent message processing with buffer algorithms
 
 ## Development Setup
+
+**Initial Setup:**
+
+```bash
+# Initialize database tables
+source .venv/bin/activate
+python manage.py init_db
+
+# Create first admin user
+python manage.py create_admin admin password123
+
+# Check database status
+python manage.py check_db
+```
 
 **Required Services:**
 
