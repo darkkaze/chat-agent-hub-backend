@@ -5,7 +5,7 @@ from models.auth import User, Agent, Token, TokenUser, TokenAgent, UserRole
 from models.channels import Channel
 from .schemas.auth import (
     LoginRequest, LoginResponse, CreateAgentRequest, CreateUserRequest, UpdateUserRequest, UpdateAgentRequest,
-    UserResponse, AgentResponse, MessageResponse, SignupRequest
+    UserResponse, AgentResponse, MessageResponse, SignupRequest, AgentTokenResponse, AgentTokensResponse
 )
 from helpers.auth import get_auth_token
 from helpers.auth import require_admin
@@ -472,5 +472,50 @@ async def delete_agent(
         db_session.add(agent)
         db_session.commit()
         return MessageResponse(message="Agent soft-deleted successfully")
+
+
+@router.get("/agents/{agent_id}/tokens", response_model=AgentTokensResponse)
+async def get_agent_tokens(
+    agent_id: str,
+    token: Token = Depends(get_auth_token),
+    db_session: Session = Depends(get_session)
+) -> AgentTokensResponse:
+    """Get active tokens for an agent (Admins only)."""
+
+    # Validate admin access
+    await require_admin(token=token)
+
+    # Get the agent to verify it exists
+    agent_statement = select(Agent).where(Agent.id == agent_id)
+    agent = db_session.exec(agent_statement).first()
+
+    if not agent:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Agent not found"
+        )
+
+    # Get active tokens for this agent
+    current_time = datetime.now(timezone.utc)
+    active_tokens_statement = (
+        select(Token)
+        .join(TokenAgent)
+        .where(TokenAgent.agent_id == agent_id)
+        .where(Token.is_revoked == False)
+        .where(Token.expires_at > current_time)
+    )
+
+    active_tokens = db_session.exec(active_tokens_statement).all()
+
+    # Convert to response format
+    token_responses = [
+        AgentTokenResponse(
+            access_token=token.access_token,
+            expires_at=token.expires_at
+        )
+        for token in active_tokens
+    ]
+
+    return AgentTokensResponse(tokens=token_responses)
 
 

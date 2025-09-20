@@ -100,3 +100,14 @@ class AgentResponse(BaseModel):
 class MessageResponse(BaseModel):
     """Schema for simple message responses."""
     message: str = Field(..., description="Response message")
+
+
+class AgentTokenResponse(BaseModel):
+    """Schema for agent token information."""
+    access_token: str = Field(..., description="Agent access token")
+    expires_at: datetime = Field(..., description="Token expiration date")
+
+
+class AgentTokensResponse(BaseModel):
+    """Schema for agent tokens list response."""
+    tokens: list[AgentTokenResponse] = Field(..., description="List of active agent tokens")
