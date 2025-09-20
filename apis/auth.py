@@ -519,3 +519,99 @@ async def get_agent_tokens(
     return AgentTokensResponse(tokens=token_responses)
 
 
+@router.post("/agents/{agent_id}/tokens", response_model=AgentTokenResponse)
+async def create_agent_token(
+    agent_id: str,
+    token: Token = Depends(get_auth_token),
+    db_session: Session = Depends(get_session)
+) -> AgentTokenResponse:
+    """Create a new token for an agent (Admins only)."""
+
+    # Validate admin access
+    await require_admin(token=token)
+
+    # Get the agent to verify it exists
+    agent_statement = select(Agent).where(Agent.id == agent_id)
+    agent = db_session.exec(agent_statement).first()
+
+    if not agent:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Agent not found"
+        )
+
+    # Generate new token for agent
+    token_generator = id_generator('tkn', 32)
+    refresh_generator = id_generator('ref', 32)
+
+    access_token = token_generator()
+    refresh_token = refresh_generator()
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=24*365)  # 1 year expiry for agents
+
+    # Create token record
+    new_token = Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_at=expires_at
+    )
+
+    db_session.add(new_token)
+    db_session.commit()
+    db_session.refresh(new_token)
+
+    # Link token to agent
+    token_agent = TokenAgent(token_id=new_token.id, agent_id=agent.id)
+    db_session.add(token_agent)
+    db_session.commit()
+
+    return AgentTokenResponse(
+        access_token=access_token,
+        expires_at=expires_at
+    )
+
+
+@router.delete("/agents/{agent_id}/tokens/{token_id}")
+async def revoke_agent_token(
+    agent_id: str,
+    token_id: str,
+    token: Token = Depends(get_auth_token),
+    db_session: Session = Depends(get_session)
+) -> MessageResponse:
+    """Revoke a specific token for an agent (Admins only)."""
+
+    # Validate admin access
+    await require_admin(token=token)
+
+    # Get the agent to verify it exists
+    agent_statement = select(Agent).where(Agent.id == agent_id)
+    agent = db_session.exec(agent_statement).first()
+
+    if not agent:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Agent not found"
+        )
+
+    # Get the token and verify it belongs to the agent
+    token_statement = (
+        select(Token)
+        .join(TokenAgent)
+        .where(Token.id == token_id)
+        .where(TokenAgent.agent_id == agent_id)
+    )
+    token_to_revoke = db_session.exec(token_statement).first()
+
+    if not token_to_revoke:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Token not found or does not belong to this agent"
+        )
+
+    # Revoke the token (soft delete)
+    token_to_revoke.is_revoked = True
+    db_session.add(token_to_revoke)
+    db_session.commit()
+
+    return MessageResponse(message=f"Token {token_id} revoked successfully")
+
+
