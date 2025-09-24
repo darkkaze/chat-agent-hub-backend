@@ -96,7 +96,7 @@ def member_token_fixture(session: Session):
 @pytest.fixture(name="sample_menu")
 def sample_menu_fixture(session: Session):
     menu = Menu(
-        icon_svg="<svg>test</svg>",
+        icon="mdi-test",
         url="/test-url"
     )
     session.add(menu)
@@ -110,7 +110,7 @@ def test_create_menu_success_admin(client: TestClient, admin_token: str):
     response = client.post(
         "/menu/",
         json={
-            "icon_svg": "<svg>home</svg>",
+            "icon": "mdi-home",
             "url": "/home"
         },
         headers={"Authorization": f"Bearer {admin_token}"}
@@ -118,7 +118,7 @@ def test_create_menu_success_admin(client: TestClient, admin_token: str):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["icon_svg"] == "<svg>home</svg>"
+    assert data["icon"] == "mdi-home"
     assert data["url"] == "/home"
     assert "id" in data
 
@@ -128,7 +128,7 @@ def test_create_menu_forbidden_member(client: TestClient, member_token: str):
     response = client.post(
         "/menu/",
         json={
-            "icon_svg": "<svg>home</svg>",
+            "icon": "mdi-home",
             "url": "/home"
         },
         headers={"Authorization": f"Bearer {member_token}"}
@@ -174,7 +174,7 @@ def test_get_menu_item_success(client: TestClient, admin_token: str, sample_menu
     assert response.status_code == 200
     data = response.json()
     assert data["id"] == sample_menu.id
-    assert data["icon_svg"] == sample_menu.icon_svg
+    assert data["icon"] == sample_menu.icon
     assert data["url"] == sample_menu.url
 
 
@@ -193,7 +193,7 @@ def test_update_menu_success_admin(client: TestClient, admin_token: str, sample_
     response = client.put(
         f"/menu/{sample_menu.id}",
         json={
-            "icon_svg": "<svg>updated</svg>",
+            "icon": "mdi-updated",
             "url": "/updated-url"
         },
         headers={"Authorization": f"Bearer {admin_token}"}
@@ -201,7 +201,7 @@ def test_update_menu_success_admin(client: TestClient, admin_token: str, sample_
 
     assert response.status_code == 200
     data = response.json()
-    assert data["icon_svg"] == "<svg>updated</svg>"
+    assert data["icon"] == "mdi-updated"
     assert data["url"] == "/updated-url"
 
 
@@ -210,7 +210,7 @@ def test_update_menu_forbidden_member(client: TestClient, member_token: str, sam
     response = client.put(
         f"/menu/{sample_menu.id}",
         json={
-            "icon_svg": "<svg>updated</svg>",
+            "icon": "mdi-updated",
             "url": "/updated-url"
         },
         headers={"Authorization": f"Bearer {member_token}"}
@@ -224,7 +224,7 @@ def test_update_menu_not_found(client: TestClient, admin_token: str):
     response = client.put(
         "/menu/nonexistent_id",
         json={
-            "icon_svg": "<svg>updated</svg>",
+            "icon": "mdi-updated",
             "url": "/updated-url"
         },
         headers={"Authorization": f"Bearer {admin_token}"}
@@ -267,18 +267,18 @@ def test_delete_menu_not_found(client: TestClient, admin_token: str):
 
 def test_create_menu_partial_update(client: TestClient, admin_token: str, sample_menu: Menu):
     """Test partial update of menu item."""
-    # Only update icon_svg
+    # Only update icon
     response = client.put(
         f"/menu/{sample_menu.id}",
         json={
-            "icon_svg": "<svg>partial</svg>"
+            "icon": "mdi-partial"
         },
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
     assert response.status_code == 200
     data = response.json()
-    assert data["icon_svg"] == "<svg>partial</svg>"
+    assert data["icon"] == "mdi-partial"
     assert data["url"] == sample_menu.url  # Should remain unchanged
 
 
@@ -287,5 +287,5 @@ def test_unauthorized_access(client: TestClient):
     response = client.get("/menu/")
     assert response.status_code == 401
 
-    response = client.post("/menu/", json={"icon_svg": "<svg>test</svg>", "url": "/test"})
+    response = client.post("/menu/", json={"icon": "mdi-test", "url": "/test"})
     assert response.status_code == 401
