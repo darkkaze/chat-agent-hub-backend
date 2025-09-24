@@ -44,6 +44,7 @@ async def create_menu_item(
 
     # Create menu item
     new_menu = Menu(
+        name=menu_data.name,
         icon=menu_data.icon,
         url=menu_data.url
     )
@@ -101,6 +102,8 @@ async def update_menu_item(
         )
 
     # Update fields that are provided (only non-None values)
+    if menu_data.name is not None:
+        menu.name = menu_data.name
     if menu_data.icon is not None:
         menu.icon = menu_data.icon
     if menu_data.url is not None:

@@ -96,6 +96,7 @@ def member_token_fixture(session: Session):
 @pytest.fixture(name="sample_menu")
 def sample_menu_fixture(session: Session):
     menu = Menu(
+        name="Test Menu",
         icon="mdi-test",
         url="/test-url"
     )
@@ -110,6 +111,7 @@ def test_create_menu_success_admin(client: TestClient, admin_token: str):
     response = client.post(
         "/menu/",
         json={
+            "name": "Home",
             "icon": "mdi-home",
             "url": "/home"
         },
@@ -118,6 +120,7 @@ def test_create_menu_success_admin(client: TestClient, admin_token: str):
 
     assert response.status_code == 200
     data = response.json()
+    assert data["name"] == "Home"
     assert data["icon"] == "mdi-home"
     assert data["url"] == "/home"
     assert "id" in data
@@ -128,6 +131,7 @@ def test_create_menu_forbidden_member(client: TestClient, member_token: str):
     response = client.post(
         "/menu/",
         json={
+            "name": "Home",
             "icon": "mdi-home",
             "url": "/home"
         },
@@ -174,6 +178,7 @@ def test_get_menu_item_success(client: TestClient, admin_token: str, sample_menu
     assert response.status_code == 200
     data = response.json()
     assert data["id"] == sample_menu.id
+    assert data["name"] == sample_menu.name
     assert data["icon"] == sample_menu.icon
     assert data["url"] == sample_menu.url
 
@@ -193,6 +198,7 @@ def test_update_menu_success_admin(client: TestClient, admin_token: str, sample_
     response = client.put(
         f"/menu/{sample_menu.id}",
         json={
+            "name": "Updated Menu",
             "icon": "mdi-updated",
             "url": "/updated-url"
         },
@@ -201,6 +207,7 @@ def test_update_menu_success_admin(client: TestClient, admin_token: str, sample_
 
     assert response.status_code == 200
     data = response.json()
+    assert data["name"] == "Updated Menu"
     assert data["icon"] == "mdi-updated"
     assert data["url"] == "/updated-url"
 
@@ -210,6 +217,7 @@ def test_update_menu_forbidden_member(client: TestClient, member_token: str, sam
     response = client.put(
         f"/menu/{sample_menu.id}",
         json={
+            "name": "Updated Menu",
             "icon": "mdi-updated",
             "url": "/updated-url"
         },
@@ -224,6 +232,7 @@ def test_update_menu_not_found(client: TestClient, admin_token: str):
     response = client.put(
         "/menu/nonexistent_id",
         json={
+            "name": "Updated Menu",
             "icon": "mdi-updated",
             "url": "/updated-url"
         },
@@ -279,6 +288,7 @@ def test_create_menu_partial_update(client: TestClient, admin_token: str, sample
     assert response.status_code == 200
     data = response.json()
     assert data["icon"] == "mdi-partial"
+    assert data["name"] == sample_menu.name  # Should remain unchanged
     assert data["url"] == sample_menu.url  # Should remain unchanged
 
 
@@ -287,5 +297,5 @@ def test_unauthorized_access(client: TestClient):
     response = client.get("/menu/")
     assert response.status_code == 401
 
-    response = client.post("/menu/", json={"icon": "mdi-test", "url": "/test"})
+    response = client.post("/menu/", json={"name": "Test", "icon": "mdi-test", "url": "/test"})
     assert response.status_code == 401
