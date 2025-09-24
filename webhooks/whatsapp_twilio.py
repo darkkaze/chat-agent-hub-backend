@@ -293,9 +293,8 @@ class WhatsAppTwilioHandler(WebhookHandler):
     async def _assign_agents_to_new_chat(self, chat: Chat) -> None:
         """Auto-assign eligible agents to new chat."""
 
-        # Find agents that should be assigned to new conversations
+        # Find all agents with webhook_url (regardless of activate_for_new_conversation)
         agent_statement = select(Agent).where(
-            Agent.activate_for_new_conversation == True,
             Agent.webhook_url.is_not(None),
             Agent.is_active == True
         )
@@ -308,18 +307,27 @@ class WhatsAppTwilioHandler(WebhookHandler):
         # Create ChatAgent links for each eligible agent
         chat_agents_created = []
         for agent in eligible_agents:
+            # Set active=True only for agents with activate_for_new_conversation=True
+            is_active = agent.activate_for_new_conversation
+
             chat_agent = ChatAgent(
                 chat_id=chat.id,
-                agent_id=agent.id
+                agent_id=agent.id,
+                active=is_active
             )
             self.session.add(chat_agent)
-            chat_agents_created.append(agent.id)
+            chat_agents_created.append({
+                "agent_id": agent.id,
+                "active": is_active
+            })
 
         self.session.commit()
 
         logger.debug("Agents auto-assigned", extra={
             "chat_id": chat.id,
-            "count": len(chat_agents_created)
+            "total_count": len(chat_agents_created),
+            "active_count": len([ca for ca in chat_agents_created if ca["active"]]),
+            "inactive_count": len([ca for ca in chat_agents_created if not ca["active"]])
         })
 
     async def _process_message_with_agents(self, message: Message, content: str) -> None:

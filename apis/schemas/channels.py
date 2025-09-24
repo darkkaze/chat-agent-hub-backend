@@ -26,3 +26,10 @@ class ChannelResponse(BaseModel):
     api_to_send_message: Optional[str] = Field(default=None, description="API endpoint to send messages")
 
     model_config = {"from_attributes": True}  # Allows Pydantic to work with SQLModel objects
+
+
+class ChannelCredentialsResponse(BaseModel):
+    """Schema for channel credentials (admin only)."""
+    channel_id: str = Field(..., description="Channel ID")
+    channel_name: str = Field(..., description="Channel name")
+    credentials_to_send_message: Dict[str, Any] = Field(default_factory=dict, description="Platform-specific credentials to send messages")

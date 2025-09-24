@@ -4,13 +4,68 @@ from database import get_session
 from models.auth import Token, User
 from models.channels import Channel, Chat, Message, SenderType, DeliveryStatus
 from helpers.auth import get_auth_token, require_user_or_agent, require_admin_or_agent, check_channel_access
-from .schemas.chats import ChatResponse, MessageResponse, ChatListResponse, ChatMessagesResponse, AssignChatRequest, SendMessageRequest
+from .schemas.chats import ChatResponse, MessageResponse, ChatListResponse, ChatMessagesResponse, AssignChatRequest, SendMessageRequest, AllChatsListResponse, ChatWithChannelResponse
 from typing import List, Optional, Dict, Any
 from outbound.message_sender import MessageSender
 from settings import logger
 import json
 
 router = APIRouter(tags=["channels"])
+
+
+@router.get("/chats", response_model=AllChatsListResponse)
+async def list_all_chats(
+    limit: int = Query(default=50, description="Number of chats to retrieve", ge=1, le=100),
+    offset: int = Query(default=0, description="Number of chats to skip", ge=0),
+    assigned_user_id: Optional[str] = Query(default=None, description="Filter by assigned user ID"),
+    assigned: Optional[bool] = Query(default=None, description="Filter by assignment status"),
+    channel_id: Optional[str] = Query(default=None, description="Filter by channel ID"),
+    token: Token = Depends(get_auth_token),
+    db_session: Session = Depends(get_session)
+) -> AllChatsListResponse:
+    """Get paginated chat list from all channels with filters."""
+
+    # Validate that token is associated with a user or agent
+    await require_user_or_agent(token=token, db_session=db_session)
+
+    # Build base chat query with channel join
+    base_statement = select(Chat, Channel).join(Channel, Chat.channel_id == Channel.id)
+
+    # Apply filters
+    if assigned_user_id is not None:
+        base_statement = base_statement.where(Chat.assigned_user_id == assigned_user_id)
+
+    if assigned is not None:
+        if assigned:
+            base_statement = base_statement.where(Chat.assigned_user_id.is_not(None))
+        else:
+            base_statement = base_statement.where(Chat.assigned_user_id.is_(None))
+
+    if channel_id is not None:
+        base_statement = base_statement.where(Chat.channel_id == channel_id)
+
+    # Get total count with filters applied
+    total_count = len(db_session.exec(base_statement).all())
+
+    # Apply pagination and order by last_message_ts (newest first)
+    paginated_statement = base_statement.order_by(desc(Chat.last_message_ts)).offset(offset).limit(limit)
+    results = db_session.exec(paginated_statement).all()
+
+    # Check if there are more chats
+    has_more = (offset + len(results)) < total_count
+
+    # Build response with channel information
+    chat_responses = []
+    for chat, channel in results:
+        chat_data = ChatResponse.model_validate(chat).model_dump()
+        chat_data["channel_name"] = channel.name
+        chat_responses.append(ChatWithChannelResponse(**chat_data))
+
+    return AllChatsListResponse(
+        chats=chat_responses,
+        total_count=total_count,
+        has_more=has_more
+    )
 
 
 @router.get("/channels/{channel_id}/chats", response_model=ChatListResponse)

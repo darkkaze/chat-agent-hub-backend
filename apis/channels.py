@@ -3,8 +3,8 @@ from sqlmodel import Session, select
 from database import get_session
 from models.channels import Channel, UserChannelPermission, PlatformType
 from models.auth import Token
-from helpers.auth import get_auth_token, require_user_or_agent, can_access_all_channels, require_admin_or_agent
-from .schemas.channels import ChannelResponse, CreateChannelRequest, UpdateChannelRequest
+from helpers.auth import get_auth_token, require_user_or_agent, can_access_all_channels, require_admin_or_agent, require_admin
+from .schemas.channels import ChannelResponse, CreateChannelRequest, UpdateChannelRequest, ChannelCredentialsResponse
 from apis.schemas.auth import MessageResponse
 from typing import List
 
@@ -209,3 +209,32 @@ async def delete_channel(
     
     # Return success confirmation
     return MessageResponse(message="Channel deleted successfully")
+
+
+@router.get("/{channel_id}/credentials")
+async def get_credentials(
+    channel_id: str,
+    token: Token = Depends(get_auth_token),
+    db_session: Session = Depends(get_session)
+) -> ChannelCredentialsResponse:
+    """Get channel credentials (admins only)."""
+
+    # Validate admin access only
+    await require_admin(token=token, db_session=db_session)
+
+    # Get the channel
+    channel_statement = select(Channel).where(Channel.id == channel_id)
+    channel = db_session.exec(channel_statement).first()
+
+    if not channel:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Channel not found"
+        )
+
+    # Return channel credentials
+    return ChannelCredentialsResponse(
+        channel_id=channel.id,
+        channel_name=channel.name,
+        credentials_to_send_message=channel.credentials_to_send_message or {}
+    )

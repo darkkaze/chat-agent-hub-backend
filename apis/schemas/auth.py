@@ -57,6 +57,12 @@ class UpdateUserRequest(BaseModel):
     is_active: Optional[bool] = Field(default=None, description="New active status")
 
 
+class UpdateUserSelfRequest(BaseModel):
+    """Schema for MEMBER users updating their own information."""
+    username: Optional[str] = Field(default=None, description="New username")
+    password: Optional[str] = Field(default=None, description="New password")
+
+
 class UpdateAgentRequest(BaseModel):
     """Schema for updating agent information."""
     name: Optional[str] = Field(default=None, description="New agent name")

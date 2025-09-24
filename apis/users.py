@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 from database import get_session
 from models.auth import User, Token, UserRole
-from .schemas.auth import CreateUserRequest, UpdateUserRequest, UserResponse, MessageResponse
+from .schemas.auth import CreateUserRequest, UpdateUserRequest, UpdateUserSelfRequest, UserResponse, MessageResponse
 from helpers.auth import get_auth_token, require_admin, require_admin_or_self
 import hashlib
 
@@ -101,6 +101,18 @@ async def update_user(
             detail="User not found"
         )
     
+    # Check if the requesting user is a MEMBER trying to edit restricted fields
+    requesting_user = token.user
+    if requesting_user and requesting_user.role == UserRole.MEMBER:
+        # MEMBER users can only update username and password of themselves
+        restricted_fields = ['email', 'phone', 'role', 'is_active']
+        for field in restricted_fields:
+            if hasattr(user_data, field) and getattr(user_data, field) is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Members can only update username and password"
+                )
+
     # Update fields that are provided (only non-None values)
     if user_data.username is not None:
         user.username = user_data.username
@@ -112,7 +124,7 @@ async def update_user(
         user.role = UserRole[user_data.role]
     if user_data.is_active is not None:
         user.is_active = user_data.is_active
-    
+
     # Hash password if provided
     if user_data.password is not None:
         hashed_password = hashlib.sha256(user_data.password.encode()).hexdigest()

@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from apis import auth, channels, chats, chat_agents, webhooks, boards, tasks, websockets
+from apis import auth, channels, chats, chat_agents, webhooks, boards, tasks, websockets, menu
 from database import engine
 
 app = FastAPI(
@@ -37,6 +37,7 @@ app.include_router(webhooks.router)
 app.include_router(boards.router)
 app.include_router(tasks.router)
 app.include_router(websockets.router)
+app.include_router(menu.router)
 
 
 @app.get("/")

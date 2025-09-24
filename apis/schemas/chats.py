@@ -37,9 +37,21 @@ class MessageResponse(BaseModel):
         from_attributes = True
 
 
+class ChatWithChannelResponse(ChatResponse):
+    """Response model for chat information including channel details."""
+    channel_name: str
+
+
 class ChatListResponse(BaseModel):
     """Response model for paginated chat list."""
     chats: List[ChatResponse]
+    total_count: int
+    has_more: bool
+
+
+class AllChatsListResponse(BaseModel):
+    """Response model for paginated chat list across all channels."""
+    chats: List[ChatWithChannelResponse]
     total_count: int
     has_more: bool
 

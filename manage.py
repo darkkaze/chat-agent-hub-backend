@@ -4,6 +4,7 @@ Management commands for Agent Hub.
 
 Usage:
     python manage.py init_db
+    python manage.py update_db
     python manage.py check_db
     python manage.py reset_db
     python manage.py create_admin <username> <password>
@@ -20,6 +21,7 @@ from models.channels import Channel, UserChannelPermission, Chat, Message
 from models.boards import Board, Task
 from models.documents import Document, ChatDocument, TaskDocument
 from models.notes import Note, ChatNote, TaskNote
+from models.menu import Menu
 
 
 def init_db():
@@ -50,23 +52,57 @@ def reset_db():
     logger.info("Database reset successfully")
 
 
+def update_db():
+    """Intelligently update database - only create missing tables."""
+    try:
+        with next(get_session()) as session:
+            # Get existing tables
+            result = session.exec(text("SELECT name FROM sqlite_master WHERE type='table'"))
+            existing_tables = {row[0] for row in result.fetchall()}
+            logger.info(f"Existing tables: {sorted(existing_tables)}")
+
+            # Get all model tables from SQLModel metadata
+            model_tables = set(SQLModel.metadata.tables.keys())
+            logger.info(f"Required tables: {sorted(model_tables)}")
+
+            # Find missing tables
+            missing_tables = model_tables - existing_tables
+
+            if missing_tables:
+                logger.info(f"Creating {len(missing_tables)} missing tables: {sorted(missing_tables)}")
+
+                # Create only missing tables
+                for table_name in missing_tables:
+                    table = SQLModel.metadata.tables[table_name]
+                    table.create(engine)
+                    logger.info(f"✓ Created table: {table_name}")
+
+                logger.info("Database update completed successfully")
+            else:
+                logger.info("✓ Database is up to date - no missing tables")
+
+    except Exception as e:
+        logger.error(f"Failed to update database: {e}")
+        sys.exit(1)
+
+
 def create_admin(username: str, password: str):
     """Create an admin user."""
     try:
         with next(get_session()) as session:
             hashed_password = hashlib.sha256(password.encode()).hexdigest()
-            
+
             admin_user = User(
                 username=username,
                 hashed_password=hashed_password,
                 role=UserRole.ADMIN,
                 is_active=True
             )
-            
+
             session.add(admin_user)
             session.commit()
             session.refresh(admin_user)
-            
+
             logger.info(f"Admin user '{username}' created successfully with ID: {admin_user.id}")
     except Exception as e:
         logger.error(f"Failed to create admin user: {e}")
@@ -78,6 +114,7 @@ def main():
         print("Usage: python manage.py <command> [args]")
         print("Commands:")
         print("  init_db                        - Initialize database tables")
+        print("  update_db                      - Create only missing tables")
         print("  check_db                       - Check database connection")
         print("  reset_db                       - Drop and recreate all tables")
         print("  create_admin <username> <pass> - Create admin user")
@@ -87,6 +124,8 @@ def main():
     
     if command == "init_db":
         init_db()
+    elif command == "update_db":
+        update_db()
     elif command == "check_db":
         check_db()
     elif command == "reset_db":

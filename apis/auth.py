@@ -105,9 +105,9 @@ async def login(
 ) -> LoginResponse:
     """Login for internal users."""
     
-    # Find user by username
+    # Find user by username or email
     user_statement = select(User).where(
-        User.username == login_data.username,
+        (User.username == login_data.username) | (User.email == login_data.username),
         User.is_active == True  # Only allow login for active users
     )
     user = db_session.exec(user_statement).first()
