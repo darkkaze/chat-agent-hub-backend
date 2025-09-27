@@ -5,10 +5,10 @@ from apis import auth, channels, chats, chat_agents, webhooks, boards, tasks, we
 from database import engine
 
 app = FastAPI(
-    title="Agent Hub API", 
+    title="Agent Hub API",
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
+    docs_url="/api/docs",
+    redoc_url="/api/redoc"
 )
 
 # CORS middleware for development
@@ -29,18 +29,18 @@ else:
         allow_headers=["*"],
     )
 
-app.include_router(auth.router)
-app.include_router(channels.router)
-app.include_router(chats.router)
-app.include_router(chat_agents.router)
-app.include_router(webhooks.router)
-app.include_router(boards.router)
-app.include_router(tasks.router)
-app.include_router(websockets.router)
-app.include_router(menu.router)
+app.include_router(auth.router, prefix="/api")
+app.include_router(channels.router, prefix="/api")
+app.include_router(chats.router, prefix="/api")
+app.include_router(chat_agents.router, prefix="/api")
+app.include_router(webhooks.router, prefix="/api")
+app.include_router(boards.router, prefix="/api")
+app.include_router(tasks.router, prefix="/api")
+app.include_router(websockets.router, prefix="/api")
+app.include_router(menu.router, prefix="/api")
 
 
-@app.get("/")
+@app.get("/api/health")
 async def root():
     """API health check."""
     return {"message": "Agent Hub API is running"}
