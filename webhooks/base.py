@@ -42,10 +42,13 @@ class WebhookHandlerFactory:
     @staticmethod
     def get_handler(platform: PlatformType, session: Session) -> WebhookHandler:
         """Get the appropriate webhook handler for the platform."""
-        
+
         if platform == PlatformType.WHATSAPP_TWILIO:
             from .whatsapp_twilio import WhatsAppTwilioHandler
             return WhatsAppTwilioHandler(session)
+        elif platform == PlatformType.WHAPI:
+            from .whapi import WhapiHandler
+            return WhapiHandler(session)
         elif platform == PlatformType.TELEGRAM:
             # Future implementation
             raise NotImplementedError(f"Handler for {platform} not implemented yet")

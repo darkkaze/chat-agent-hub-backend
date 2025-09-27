@@ -11,6 +11,7 @@ class PlatformType(str, Enum):
     """Available platform types for channels."""
     WHATSAPP = "WHATSAPP"
     WHATSAPP_TWILIO = "WHATSAPP_TWILIO"
+    WHAPI = "WHAPI"
     TELEGRAM = "TELEGRAM"
     INSTAGRAM = "INSTAGRAM"
 

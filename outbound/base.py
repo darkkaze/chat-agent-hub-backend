@@ -34,10 +34,13 @@ class OutboundHandlerFactory:
     @staticmethod
     def get_handler(platform: PlatformType) -> OutboundHandler:
         """Get the appropriate outbound handler for the platform."""
-        
+
         if platform == PlatformType.WHATSAPP_TWILIO:
             from .whatsapp_twilio import TwilioOutboundHandler
             return TwilioOutboundHandler()
+        elif platform == PlatformType.WHAPI:
+            from .whapi import WhapiOutboundHandler
+            return WhapiOutboundHandler()
         elif platform == PlatformType.TELEGRAM:
             # Future implementation
             raise NotImplementedError(f"Outbound handler for {platform} not implemented yet")
