@@ -1,10 +1,7 @@
 import httpx
-import asyncio
 import random
-from typing import Dict, Any, List
-from datetime import datetime, timezone, timedelta
-from sqlmodel import Session, select
-from models.channels import Chat, Message, Channel, SenderType
+from typing import Dict, Any
+from models.channels import Chat, Message, Channel
 from .base import OutboundHandler
 from settings import logger
 
@@ -25,15 +22,7 @@ class WhapiOutboundHandler(OutboundHandler):
         if not self.validate_channel_config(channel):
             raise ValueError("Invalid WHAPI channel configuration")
 
-        # Check if we need to add delay for new conversations
-        should_delay = await self._should_apply_conversation_delay(chat)
-        if should_delay:
-            delay_seconds = self._get_conversation_delay()
-            logger.info("Adding intelligent conversation delay", extra={
-                "chat_id": chat.id,
-                "delay_seconds": delay_seconds
-            })
-            await asyncio.sleep(delay_seconds)
+        # No conversation delay - keep it simple
 
         # Calculate typing time based on message length
         typing_time = self._calculate_typing_time(message.content)
@@ -168,107 +157,3 @@ class WhapiOutboundHandler(OutboundHandler):
 
         return typing_time
 
-    async def _should_apply_conversation_delay(self, chat: Chat) -> bool:
-        """
-        Determine if we should apply conversation delay based on recent message patterns.
-
-        Apply delay when:
-        - User reactivates conversation after >1h of their last message
-        - User starts new conversation
-
-        No delay when:
-        - We are in active conversation (messages exchanged in last hour)
-        - We initiated the conversation
-        """
-
-        try:
-            # Import here to avoid circular imports
-            from database import engine
-
-            # Get recent messages (last 3 in past hour)
-            one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
-
-            with Session(engine) as session:
-                recent_messages_stmt = (
-                    select(Message)
-                    .where(Message.chat_id == chat.id)
-                    .where(Message.timestamp >= one_hour_ago)
-                    .order_by(Message.timestamp.desc())
-                    .limit(3)
-                )
-                recent_messages = session.exec(recent_messages_stmt).all()
-
-            if not recent_messages:
-                # No recent messages - check if this is completely new or reactivation
-                with Session(engine) as session:
-                    last_contact_stmt = (
-                        select(Message)
-                        .where(Message.chat_id == chat.id)
-                        .where(Message.sender_type == SenderType.CONTACT)
-                        .order_by(Message.timestamp.desc())
-                        .limit(1)
-                    )
-                    last_contact_msg = session.exec(last_contact_stmt).first()
-
-                if not last_contact_msg:
-                    # Completely new conversation, no delay needed (we're initiating)
-                    return False
-
-                # Check if last contact message was >1h ago (reactivation)
-                time_since_contact = datetime.now(timezone.utc) - last_contact_msg.timestamp
-                return time_since_contact > timedelta(hours=1)
-
-            # Analyze recent messages
-            contact_messages = [m for m in recent_messages if m.sender_type == SenderType.CONTACT]
-            our_messages = [m for m in recent_messages if m.sender_type in [SenderType.USER, SenderType.AGENT]]
-
-            if not contact_messages:
-                # No recent contact messages, we're initiating - no delay
-                return False
-
-            last_contact_msg = contact_messages[0]  # Most recent contact message
-
-            if our_messages:
-                last_our_msg = our_messages[0]  # Most recent our message
-                if last_our_msg.timestamp > last_contact_msg.timestamp:
-                    # We already responded to their last message - no delay
-                    return False
-
-            # Check if this is reactivation (contact's last message was >1h after their previous)
-            if len(contact_messages) > 1:
-                previous_contact_msg = contact_messages[1]
-                gap_between_contact_msgs = last_contact_msg.timestamp - previous_contact_msg.timestamp
-
-                if gap_between_contact_msgs > timedelta(hours=1):
-                    # User reactivated conversation after >1h gap
-                    logger.info("Detected conversation reactivation", extra={
-                        "chat_id": chat.id,
-                        "gap_hours": gap_between_contact_msgs.total_seconds() / 3600
-                    })
-                    return True
-
-            # Check if this is first response to contact (we haven't responded yet)
-            if not our_messages:
-                logger.info("Detected first response to contact message", extra={
-                    "chat_id": chat.id,
-                    "contact_message_time": last_contact_msg.timestamp.isoformat()
-                })
-                return True
-
-            # Active conversation - no delay
-            return False
-
-        except Exception as e:
-            logger.warning("Failed to analyze conversation delay", extra={
-                "chat_id": chat.id,
-                "error": str(e)
-            })
-            # Default to no delay on error
-            return False
-
-    def _get_conversation_delay(self) -> int:
-        """Get random delay between 10 seconds and 2 minutes."""
-
-        # Random delay between 10 seconds and 2 minutes (120 seconds)
-        delay_seconds = random.randint(10, 120)
-        return delay_seconds
