@@ -8,83 +8,43 @@ from settings import logger
 from tasks.agent_tasks import process_chat_message
 
 
-class WhapiHandler(WebhookHandler):
-    """Handler for WhatsApp messages via WHAPI webhook."""
+class TelegramHandler(WebhookHandler):
+    """Handler for Telegram messages via Telegram Bot API webhook."""
 
     async def process_inbound(self, data: Dict[str, Any], channel_id: str) -> Dict[str, Any]:
-        """Process inbound WhatsApp webhook from WHAPI."""
+        """Process inbound Telegram webhook."""
 
-        logger.info("Processing WHAPI webhook", extra={
+        logger.info("Processing Telegram webhook", extra={
             "channel_id": channel_id,
             "data_keys": list(data.keys())
         })
 
         # Validate payload
         if not self.validate_payload(data):
-            raise ValueError("Invalid WHAPI payload")
-
-        # Process messages
-        results = []
-        messages = data.get("messages", [])
-
-        for message_data in messages:
-            result = await self.process_message(message_data, channel_id)
-            results.append(result)
-
-        return {
-            "status": "success",
-            "processed_messages": len(results),
-            "results": results
-        }
-
-    async def process_message(self, message_data: Dict[str, Any], channel_id: str) -> Dict[str, Any]:
-        """Process individual WHAPI message."""
+            raise ValueError("Invalid Telegram payload")
 
         # Extract message content
-        extracted_data = self.extract_message_data_from_single(message_data)
-
-        # Skip messages sent by us
-        if message_data.get("from_me", False):
-            logger.info("Skipping outbound message", extra={
-                "message_id": message_data.get("id"),
-                "channel_id": channel_id
-            })
-            return {"status": "skipped", "reason": "outbound_message"}
+        extracted_data = self.extract_message_data(data)
 
         # Get or create chat
         chat = await self._get_or_create_chat(
             channel_id=channel_id,
-            external_id=extracted_data["from_number"],
-            contact_phone=extracted_data["from_number"],
-            contact_name=extracted_data.get("from_name", extracted_data["from_number"])
+            external_id=str(extracted_data["chat_id"]),
+            contact_name=extracted_data.get("from_name", str(extracted_data["chat_id"]))
         )
-
-        # Handle different message types
-        message_content = ""
-        message_type = extracted_data.get("message_type", "text")
-
-        if message_type == "text":
-            message_content = extracted_data["text_body"]
-        else:
-            # For non-text messages, create a placeholder
-            message_content = f"[{message_type.upper()} MESSAGE]"
-            logger.info("Received non-text message", extra={
-                "message_type": message_type,
-                "chat_id": chat.id
-            })
 
         # Create message record
         message = Message(
-            external_id=extracted_data["message_id"],
+            external_id=str(extracted_data["message_id"]),
             chat_id=chat.id,
-            content=message_content,
+            content=extracted_data["text"],
             sender_type=SenderType.CONTACT,
             timestamp=extracted_data["timestamp"],
             meta_data={
-                "platform": "whapi",
-                "message_type": message_type,
-                "source": message_data.get("source", "unknown"),
-                "original_payload": message_data
+                "platform": "telegram",
+                "from_id": extracted_data["from_id"],
+                "from_username": extracted_data.get("from_username"),
+                "original_payload": data
             }
         )
 
@@ -95,7 +55,7 @@ class WhapiHandler(WebhookHandler):
         # Update chat with latest message info
         chat.last_message_ts = message.timestamp
         chat.last_sender_type = SenderType.CONTACT
-        chat.last_message = message_content[:100] + "..." if len(message_content) > 100 else message_content
+        chat.last_message = message.content[:100] + "..." if len(message.content) > 100 else message.content
 
         self.session.add(chat)
         self.session.commit()
@@ -106,7 +66,7 @@ class WhapiHandler(WebhookHandler):
         # Trigger agent processing for all assigned agents
         await self._trigger_agent_processing(chat, message)
 
-        logger.info("Processed WHAPI message", extra={
+        logger.info("Processed Telegram message", extra={
             "message_id": message.id,
             "chat_id": chat.id,
             "external_message_id": extracted_data["message_id"]
@@ -116,85 +76,62 @@ class WhapiHandler(WebhookHandler):
             "status": "processed",
             "message_id": message.id,
             "chat_id": chat.id,
-            "content_preview": message_content[:50]
+            "content_preview": message.content[:50]
         }
 
     def validate_payload(self, data: Dict[str, Any]) -> bool:
-        """Validate WHAPI webhook payload structure."""
+        """Validate Telegram webhook payload structure."""
 
-        # Check for required top-level fields
-        if "messages" not in data:
-            logger.warning("WHAPI payload missing 'messages' field")
+        # Telegram sends updates with a message object
+        if "message" not in data:
+            logger.warning("Telegram payload missing 'message' field")
             return False
 
-        messages = data.get("messages", [])
-        if not isinstance(messages, list) or len(messages) == 0:
-            logger.warning("WHAPI payload has empty or invalid messages array")
-            return False
+        message = data.get("message", {})
 
-        # Validate each message
-        for message in messages:
-            if not self._validate_single_message(message):
-                return False
-
-        return True
-
-    def _validate_single_message(self, message: Dict[str, Any]) -> bool:
-        """Validate individual message structure."""
-
-        required_fields = ["id", "type", "chat_id", "timestamp", "from"]
-
+        # Check required fields
+        required_fields = ["message_id", "from", "chat", "date"]
         for field in required_fields:
             if field not in message:
-                logger.warning(f"WHAPI message missing required field: {field}")
+                logger.warning(f"Telegram message missing required field: {field}")
                 return False
 
-        # Validate message type specific fields
-        message_type = message.get("type")
-        if message_type == "text":
-            if "text" not in message or "body" not in message.get("text", {}):
-                logger.warning("WHAPI text message missing text.body field")
-                return False
+        # Check for text content
+        if "text" not in message:
+            logger.warning("Telegram message missing 'text' field (non-text messages not supported yet)")
+            return False
 
         return True
 
     def extract_message_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Extract standardized message data from WHAPI payload."""
+        """Extract standardized message data from Telegram payload."""
 
-        # For WHAPI, we process the first message in the array
-        messages = data.get("messages", [])
-        if not messages:
-            raise ValueError("No messages found in WHAPI payload")
-
-        return self.extract_message_data_from_single(messages[0])
-
-    def extract_message_data_from_single(self, message: Dict[str, Any]) -> Dict[str, Any]:
-        """Extract data from a single WHAPI message."""
+        message = data.get("message", {})
 
         # Convert timestamp from Unix to datetime
         timestamp = datetime.fromtimestamp(
-            message.get("timestamp", 0),
+            message.get("date", 0),
             tz=timezone.utc
         )
 
-        # Extract text content
-        text_body = ""
-        if message.get("type") == "text" and "text" in message:
-            text_body = message["text"].get("body", "")
+        # Extract sender info
+        from_data = message.get("from", {})
+        from_name = from_data.get("first_name", "")
+        if from_data.get("last_name"):
+            from_name += f" {from_data.get('last_name')}"
 
         return {
-            "message_id": message.get("id"),
-            "from_number": message.get("from"),
-            "from_name": message.get("from_name", ""),
-            "chat_id": message.get("chat_id"),
-            "text_body": text_body,
-            "message_type": message.get("type", "text"),
-            "timestamp": timestamp,
-            "source": message.get("source", "unknown")
+            "message_id": message.get("message_id"),
+            "from_id": from_data.get("id"),
+            "from_name": from_name.strip() or str(from_data.get("id")),
+            "from_username": from_data.get("username"),
+            "chat_id": message.get("chat", {}).get("id"),
+            "text": message.get("text", ""),
+            "timestamp": timestamp
         }
 
     async def _get_or_create_chat(self, channel_id: str, external_id: str,
-                                contact_phone: str, contact_name: str) -> Chat:
+                                contact_name: str) -> Chat:
         """Get existing chat or create new one."""
 
         # Try to find existing chat
@@ -209,13 +146,12 @@ class WhapiHandler(WebhookHandler):
 
         # Create new chat
         chat = Chat(
-            name=contact_name or contact_phone,
+            name=contact_name,
             external_id=external_id,
             channel_id=channel_id,
             meta_data={
-                "contact_phone": contact_phone,
                 "contact_name": contact_name,
-                "platform": "whapi"
+                "platform": "telegram"
             }
         )
 
@@ -226,7 +162,7 @@ class WhapiHandler(WebhookHandler):
         # Auto-assign agents that are configured for new conversations
         await self._auto_assign_agents(chat)
 
-        logger.info("Created new WHAPI chat", extra={
+        logger.info("Created new Telegram chat", extra={
             "chat_id": chat.id,
             "external_id": external_id,
             "channel_id": channel_id
@@ -316,7 +252,7 @@ class WhapiHandler(WebhookHandler):
                 "preview": message.content[:100],
                 "timestamp": message.timestamp.isoformat(),
                 "chat_name": chat.name,
-                "platform": "whapi"
+                "platform": "telegram"
             }
 
             await connection_manager.broadcast(notification_data)

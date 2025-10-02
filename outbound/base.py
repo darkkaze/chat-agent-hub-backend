@@ -42,8 +42,8 @@ class OutboundHandlerFactory:
             from .whapi import WhapiOutboundHandler
             return WhapiOutboundHandler()
         elif platform == PlatformType.TELEGRAM:
-            # Future implementation
-            raise NotImplementedError(f"Outbound handler for {platform} not implemented yet")
+            from .telegram import TelegramOutboundHandler
+            return TelegramOutboundHandler()
         elif platform == PlatformType.INSTAGRAM:
             # Future implementation
             raise NotImplementedError(f"Outbound handler for {platform} not implemented yet")

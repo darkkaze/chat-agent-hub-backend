@@ -50,8 +50,8 @@ class WebhookHandlerFactory:
             from .whapi import WhapiHandler
             return WhapiHandler(session)
         elif platform == PlatformType.TELEGRAM:
-            # Future implementation
-            raise NotImplementedError(f"Handler for {platform} not implemented yet")
+            from .telegram import TelegramHandler
+            return TelegramHandler(session)
         elif platform == PlatformType.INSTAGRAM:
             # Future implementation
             raise NotImplementedError(f"Handler for {platform} not implemented yet")
