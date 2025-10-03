@@ -263,4 +263,4 @@ class TelegramHandler(WebhookHandler):
                 "error": str(e),
                 "chat_id": chat.id,
                 "message_id": message.id
-            })
+            }, exc_info=True)
