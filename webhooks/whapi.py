@@ -306,6 +306,7 @@ class WhapiHandler(WebhookHandler):
         """Send WebSocket notification for new message."""
 
         try:
+            import json
             from ws_service.connection_manager import connection_manager
 
             notification_data = {
@@ -319,7 +320,7 @@ class WhapiHandler(WebhookHandler):
                 "platform": "whapi"
             }
 
-            await connection_manager.broadcast(notification_data)
+            await connection_manager.broadcast(json.dumps(notification_data))
 
         except Exception as e:
             logger.error("Failed to send WebSocket notification", extra={
