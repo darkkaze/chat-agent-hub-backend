@@ -243,7 +243,7 @@ class TelegramHandler(WebhookHandler):
 
         try:
             import json
-            from ws_service.connection_manager import connection_manager
+            from ws_service.manager import manager
 
             notification_data = {
                 "type": "new_message",
@@ -256,7 +256,7 @@ class TelegramHandler(WebhookHandler):
                 "platform": "telegram"
             }
 
-            await connection_manager.broadcast(json.dumps(notification_data))
+            await manager.broadcast(json.dumps(notification_data))
 
         except Exception as e:
             logger.error("Failed to send WebSocket notification", extra={
