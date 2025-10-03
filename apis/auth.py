@@ -67,27 +67,27 @@ async def signup(
     # Generate tokens
     token_generator = id_generator('tkn', 32)
     refresh_generator = id_generator('ref', 32)
-    
+
     access_token = token_generator()
     refresh_token = refresh_generator()
-    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
-    
+    expires_at = datetime.now(timezone.utc) + timedelta(days=365*10)  # 10 years expiry
+
     # Create token record
     new_token = Token(
         access_token=access_token,
         refresh_token=refresh_token,
         expires_at=expires_at
     )
-    
+
     db_session.add(new_token)
     db_session.commit()
     db_session.refresh(new_token)
-    
+
     # Link token to user
     token_user = TokenUser(token_id=new_token.id, user_id=new_user.id)
     db_session.add(token_user)
     db_session.commit()
-    
+
     # Return login response
     return LoginResponse(
         access_token=access_token,
@@ -125,27 +125,27 @@ async def login(
     # Generate tokens
     token_generator = id_generator('tkn', 32)
     refresh_generator = id_generator('ref', 32)
-    
+
     access_token = token_generator()
     refresh_token = refresh_generator()
-    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)  # 24 hours expiry
-    
+    expires_at = datetime.now(timezone.utc) + timedelta(days=365*10)  # 10 years expiry
+
     # Create token record
     new_token = Token(
         access_token=access_token,
         refresh_token=refresh_token,
         expires_at=expires_at
     )
-    
+
     db_session.add(new_token)
     db_session.commit()
     db_session.refresh(new_token)
-    
+
     # Link token to user
     token_user = TokenUser(token_id=new_token.id, user_id=user.id)
     db_session.add(token_user)
     db_session.commit()
-    
+
     # Return login response
     return LoginResponse(
         access_token=access_token,
@@ -347,7 +347,7 @@ async def create_agent(
 
     access_token = token_generator()
     refresh_token = refresh_generator()
-    expires_at = datetime.now(timezone.utc) + timedelta(hours=24*365)  # 1 year expiry for agents
+    expires_at = datetime.now(timezone.utc) + timedelta(days=365*10)  # 10 years expiry for agents
 
     # Create token record
     new_token = Token(
@@ -546,7 +546,7 @@ async def create_agent_token(
 
     access_token = token_generator()
     refresh_token = refresh_generator()
-    expires_at = datetime.now(timezone.utc) + timedelta(hours=24*365)  # 1 year expiry for agents
+    expires_at = datetime.now(timezone.utc) + timedelta(days=365*10)  # 10 years expiry for agents
 
     # Create token record
     new_token = Token(
