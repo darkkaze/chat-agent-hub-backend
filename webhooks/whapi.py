@@ -312,12 +312,16 @@ class WhapiHandler(WebhookHandler):
             notification_data = {
                 "type": "new_message",
                 "chat_id": chat.id,
+                "channel_id": chat.channel_id,
                 "message_id": message.id,
                 "sender_type": message.sender_type.value,
-                "preview": message.content[:100],
                 "timestamp": message.timestamp.isoformat(),
+                "message_type": "text",
+                "content": message.content,
+                "preview": message.content[:100],
+                "external_id": message.external_id or "",
                 "chat_name": chat.name,
-                "platform": "whapi"
+                "chat_external_id": chat.external_id or ""
             }
 
             await manager.broadcast(json.dumps(notification_data))
