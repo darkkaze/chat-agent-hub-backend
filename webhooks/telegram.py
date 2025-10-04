@@ -1,5 +1,6 @@
 from typing import Dict, Any, Optional
 from sqlmodel import select
+from sqlalchemy import text
 from datetime import datetime, timezone
 from models.channels import Chat, Message, SenderType, Channel, DeliveryStatus, ChatAgent
 from models.auth import Agent
@@ -174,27 +175,24 @@ class TelegramHandler(WebhookHandler):
     async def _auto_assign_agents(self, chat: Chat):
         """Auto-assign agents that are configured for new conversations."""
 
-        # Find agents configured for auto-assignment
-        agent_statement = select(Agent).where(
-            Agent.activate_for_new_conversation == True,
-            Agent.is_active == True
-        )
-        agents = self.session.exec(agent_statement).all()
+        # Bulk insert ChatAgent records for all eligible agents
+        bulk_insert_query = text("""
+            INSERT INTO chatagent (id, chat_id, agent_id, active)
+            SELECT
+                CONCAT('chatagent_', SUBSTRING(MD5(RANDOM()::text || CLOCK_TIMESTAMP()::text) FROM 1 FOR 10)),
+                :chat_id,
+                a.id,
+                true
+            FROM agent a
+            WHERE a.activate_for_new_conversation = true AND a.is_active = true
+            ON CONFLICT (chat_id, agent_id) DO NOTHING
+        """)
+        self.session.exec(bulk_insert_query, params={"chat_id": chat.id})
+        self.session.commit()
 
-        for agent in agents:
-            chat_agent = ChatAgent(
-                chat_id=chat.id,
-                agent_id=agent.id,
-                active=True
-            )
-            self.session.add(chat_agent)
-
-        if agents:
-            self.session.commit()
-            logger.info("Auto-assigned agents to new chat", extra={
-                "chat_id": chat.id,
-                "agent_count": len(agents)
-            })
+        logger.info("Auto-assigned agents to new chat", extra={
+            "chat_id": chat.id
+        })
 
     async def _trigger_agent_processing(self, chat: Chat, message: Message):
         """Trigger agent processing for all assigned ChatAgents."""

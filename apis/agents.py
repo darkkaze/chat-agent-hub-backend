@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
+from sqlalchemy import text
 from database import get_session
 from models.auth import Agent, Token
 from models.channels import Channel
@@ -35,9 +36,22 @@ async def create_agent(
     db_session.add(new_agent)
     db_session.commit()
     db_session.refresh(new_agent)
-    
-    # Note: Channel-Agent association removed per model changes
-    
+
+    # Auto-assign agent to existing chats if activate_for_new_conversation is True
+    if new_agent.activate_for_new_conversation:
+        bulk_insert_query = text("""
+            INSERT INTO chatagent (id, chat_id, agent_id, active)
+            SELECT
+                CONCAT('chatagent_', SUBSTRING(MD5(RANDOM()::text || CLOCK_TIMESTAMP()::text) FROM 1 FOR 10)),
+                c.id,
+                :agent_id,
+                true
+            FROM chat c
+            ON CONFLICT (chat_id, agent_id) DO NOTHING
+        """)
+        db_session.exec(bulk_insert_query, params={"agent_id": new_agent.id})
+        db_session.commit()
+
     return AgentResponse.model_validate(new_agent)
 
 

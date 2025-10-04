@@ -1,5 +1,6 @@
 from typing import Dict, Any, Optional
 from sqlmodel import select
+from sqlalchemy import text
 from datetime import datetime, timezone
 from models.channels import Chat, Message, SenderType, Channel, DeliveryStatus, ChatAgent
 from models.auth import Agent
@@ -293,41 +294,24 @@ class WhatsAppTwilioHandler(WebhookHandler):
     async def _assign_agents_to_new_chat(self, chat: Chat) -> None:
         """Auto-assign eligible agents to new chat."""
 
-        # Find all agents with webhook_url (regardless of activate_for_new_conversation)
-        agent_statement = select(Agent).where(
-            Agent.webhook_url.is_not(None),
-            Agent.is_active == True
-        )
-        eligible_agents = self.session.exec(agent_statement).all()
-
-        if not eligible_agents:
-            logger.info("No eligible agents found for new chat", extra={"chat_id": chat.id})
-            return
-
-        # Create ChatAgent links for each eligible agent
-        chat_agents_created = []
-        for agent in eligible_agents:
-            # Set active=True only for agents with activate_for_new_conversation=True
-            is_active = agent.activate_for_new_conversation
-
-            chat_agent = ChatAgent(
-                chat_id=chat.id,
-                agent_id=agent.id,
-                active=is_active
-            )
-            self.session.add(chat_agent)
-            chat_agents_created.append({
-                "agent_id": agent.id,
-                "active": is_active
-            })
-
+        # Bulk insert ChatAgent records for all eligible agents with webhook_url
+        # Set active=true only for agents with activate_for_new_conversation=true
+        bulk_insert_query = text("""
+            INSERT INTO chatagent (id, chat_id, agent_id, active)
+            SELECT
+                CONCAT('chatagent_', SUBSTRING(MD5(RANDOM()::text || CLOCK_TIMESTAMP()::text) FROM 1 FOR 10)),
+                :chat_id,
+                a.id,
+                a.activate_for_new_conversation
+            FROM agent a
+            WHERE a.webhook_url IS NOT NULL AND a.is_active = true
+            ON CONFLICT (chat_id, agent_id) DO NOTHING
+        """)
+        self.session.exec(bulk_insert_query, params={"chat_id": chat.id})
         self.session.commit()
 
-        logger.debug("Agents auto-assigned", extra={
-            "chat_id": chat.id,
-            "total_count": len(chat_agents_created),
-            "active_count": len([ca for ca in chat_agents_created if ca["active"]]),
-            "inactive_count": len([ca for ca in chat_agents_created if not ca["active"]])
+        logger.debug("Agents auto-assigned to new chat", extra={
+            "chat_id": chat.id
         })
 
     async def _process_message_with_agents(self, message: Message, content: str) -> None:

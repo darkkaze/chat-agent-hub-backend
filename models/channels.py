@@ -1,4 +1,4 @@
-from sqlmodel import SQLModel, Field, Column, Relationship
+from sqlmodel import SQLModel, Field, Column, Relationship, UniqueConstraint
 from sqlalchemy import JSON
 from enum import Enum
 from typing import Optional, Dict, Any
@@ -79,6 +79,10 @@ class Message(SQLModel, table=True):
 
 class ChatAgent(SQLModel, table=True):
     """Junction table linking chats to agents."""
+    __table_args__ = (
+        UniqueConstraint('chat_id', 'agent_id', name='uq_chat_agent'),
+    )
+
     id: str = Field(default_factory=id_generator('chatagent', 10), primary_key=True)
     chat_id: str = Field(foreign_key="chat.id", index=True)
     agent_id: str = Field(foreign_key="agent.id", index=True)
