@@ -184,21 +184,19 @@ def process_chat_message(chat_agent_id: str, message_id: str, content: str):
                 recent_msg_window_minutes=agent.recent_msg_window_minutes
             )
 
-            # 4. Prepare payload
+            # 4. Prepare payload (simplified format)
             payload = {
                 "chat": {
                     "id": chat.id,
+                    "name": chat.name,
                     "external_id": chat.external_id,
                     "channel_id": chat.channel_id
                 },
                 "messages": [
                     {
-                        "id": msg.id,
-                        "external_id": msg.external_id,
-                        "chat_id": msg.chat_id,
                         "content": msg.content,
-                        "timestamp": msg.timestamp.isoformat(),
-                        "metadata": msg.meta_data
+                        "sender": msg.sender_type.value.lower(),
+                        "timestamp": msg.timestamp.isoformat()
                     }
                     for msg in messages
                 ]
