@@ -80,6 +80,7 @@ class WhapiHandler(WebhookHandler):
             content=message_content,
             sender_type=SenderType.CONTACT,
             timestamp=extracted_data["timestamp"],
+            delivery_status=DeliveryStatus.SENT,
             meta_data={
                 "platform": "whapi",
                 "message_type": message_type,

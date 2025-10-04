@@ -40,6 +40,7 @@ class TelegramHandler(WebhookHandler):
             content=extracted_data["text"],
             sender_type=SenderType.CONTACT,
             timestamp=extracted_data["timestamp"],
+            delivery_status=DeliveryStatus.SENT,
             meta_data={
                 "platform": "telegram",
                 "from_id": extracted_data["from_id"],
