@@ -2,44 +2,44 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlmodel import Session, select
 from database import get_session
 from models.channels import Channel, PlatformType
-from webhooks.base import WebhookHandlerFactory
+from inbound.base import InboundHandlerFactory
 from settings import logger
 from typing import Dict, Any
 
-router = APIRouter(prefix="/webhooks", tags=["webhooks"])
+router = APIRouter(prefix="/inbound", tags=["inbound"])
 
 
-@router.post("/inbound/{platform}/{channel_id}")
-async def receive_inbound_webhook(
+@router.post("/{platform}/{channel_id}")
+async def receive_inbound_message(
     platform: str,
     channel_id: str,
     request: Request,
     db_session: Session = Depends(get_session)
 ) -> Dict[str, Any]:
-    """Receive messages and events from WhatsApp, Telegram, etc."""
-    
-    logger.info("Webhook received", extra={
+    """Receive inbound messages and events from WhatsApp, Telegram, etc."""
+
+    logger.info("Inbound message received", extra={
         "platform": platform,
         "channel_id": channel_id
     })
     
     try:
         # Get request body as dict
-        webhook_data = {}
+        inbound_data = {}
         content_type = request.headers.get("content-type", "")
-        
+
         if "application/json" in content_type:
-            webhook_data = await request.json()
+            inbound_data = await request.json()
         elif "application/x-www-form-urlencoded" in content_type:
             form_data = await request.form()
-            webhook_data = dict(form_data)
+            inbound_data = dict(form_data)
         else:
             # Try to get as form data (Twilio default)
             try:
                 form_data = await request.form()
-                webhook_data = dict(form_data)
+                inbound_data = dict(form_data)
             except:
-                webhook_data = await request.json()
+                inbound_data = await request.json()
         
         # Validate channel exists
         channel_statement = select(Channel).where(Channel.id == channel_id)
@@ -69,17 +69,17 @@ async def receive_inbound_webhook(
         
         # Get appropriate handler
         try:
-            handler = WebhookHandlerFactory.get_handler(platform_enum, db_session)
+            handler = InboundHandlerFactory.get_handler(platform_enum, db_session)
         except (NotImplementedError, ValueError) as e:
             raise HTTPException(
                 status_code=status.HTTP_501_NOT_IMPLEMENTED,
                 detail=str(e)
             )
-        
-        # Process the webhook
-        result = await handler.process_inbound(webhook_data, channel_id)
-        
-        logger.info("Webhook processed successfully", extra={
+
+        # Process the inbound message
+        result = await handler.process_inbound(inbound_data, channel_id)
+
+        logger.info("Inbound message processed successfully", extra={
             "platform": platform,
             "channel_id": channel_id,
             "result": result
@@ -90,15 +90,15 @@ async def receive_inbound_webhook(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Error processing webhook", extra={
+        logger.error("Error processing inbound message", extra={
             "platform": platform,
             "channel_id": channel_id,
             "error": str(e)
         }, exc_info=True)
-        
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error processing webhook"
+            detail="Error processing inbound message"
         )
 
 

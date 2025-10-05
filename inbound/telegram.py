@@ -4,13 +4,13 @@ from sqlalchemy import text
 from datetime import datetime, timezone
 from models.channels import Chat, Message, SenderType, Channel, DeliveryStatus, ChatAgent
 from models.auth import Agent
-from .base import WebhookHandler
+from .base import InboundHandler
 from settings import logger
 from tasks.agent_tasks import process_chat_message
 
 
-class TelegramHandler(WebhookHandler):
-    """Handler for Telegram messages via Telegram Bot API webhook."""
+class TelegramHandler(InboundHandler):
+    """Handler for Telegram messages via Telegram Bot API inbound webhook."""
 
     async def process_inbound(self, data: Dict[str, Any], channel_id: str) -> Dict[str, Any]:
         """Process inbound Telegram webhook."""

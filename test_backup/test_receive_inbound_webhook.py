@@ -5,7 +5,7 @@ from datetime import datetime
 from models.channels import Channel, Chat, Message, PlatformType, SenderType
 from models.auth import User, UserRole, Agent, Token
 from database import get_session
-from apis.webhooks import receive_inbound_webhook
+from apis.inbound import receive_inbound_message
 
 
 @pytest.fixture(name="session")
@@ -57,7 +57,7 @@ async def test_receive_whatsapp_text_message_success(session):
     # When receiving the webhook
     mock_request = MockRequest(form_data=webhook_data)
     
-    result = await receive_inbound_webhook(
+    result = await receive_inbound_message(
         platform="whatsapp_twilio",
         request=mock_request,
         db_session=session
@@ -114,7 +114,7 @@ async def test_receive_whatsapp_voice_message_success(session):
     # When receiving the webhook
     mock_request = MockRequest(form_data=webhook_data)
     
-    result = await receive_inbound_webhook(
+    result = await receive_inbound_message(
         platform="whatsapp_twilio",
         request=mock_request,
         db_session=session
@@ -170,7 +170,7 @@ async def test_receive_webhook_existing_chat(session):
     # When receiving the webhook
     mock_request = MockRequest(form_data=webhook_data)
     
-    result = await receive_inbound_webhook(
+    result = await receive_inbound_message(
         platform="whatsapp_twilio",
         request=mock_request,
         db_session=session
@@ -198,7 +198,7 @@ async def test_receive_webhook_channel_not_found(session):
     mock_request = MockRequest(form_data=webhook_data)
     
     with pytest.raises(Exception) as exc_info:
-        await receive_inbound_webhook(
+        await receive_inbound_message(
             platform="whatsapp_twilio",
             request=mock_request,
             db_session=session
@@ -232,7 +232,7 @@ async def test_receive_webhook_platform_mismatch(session):
     
     # When sending WhatsApp webhook to Telegram channel
     with pytest.raises(Exception) as exc_info:
-        await receive_inbound_webhook(
+        await receive_inbound_message(
             platform="whatsapp_twilio",
             request=mock_request,
             db_session=session
@@ -261,7 +261,7 @@ async def test_receive_webhook_unsupported_platform(session):
     
     # When using unsupported platform
     with pytest.raises(Exception) as exc_info:
-        await receive_inbound_webhook(
+        await receive_inbound_message(
             platform="unsupported_platform",
             request=mock_request,
             db_session=session
@@ -299,7 +299,7 @@ async def test_receive_webhook_json_content_type(session):
         content_type="application/json"
     )
     
-    result = await receive_inbound_webhook(
+    result = await receive_inbound_message(
         platform="whatsapp_twilio",
         request=mock_request,
         db_session=session
