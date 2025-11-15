@@ -38,7 +38,11 @@ class WhapiOutboundHandler(OutboundHandler):
             raise ValueError("No recipient phone number found in chat")
 
         # Prepare API request
-        url = "https://gate.whapi.cloud/messages/text"
+        # Extract base URL from channel config, default to WHAPI base URL
+        base_url = channel.api_to_send_message or "https://gate.whapi.cloud"
+        # Hardcode text messages endpoint
+        endpoint = "/messages/text"
+        url = f"{base_url}{endpoint}"
 
         headers = {
             "Authorization": f"Bearer {token}",
