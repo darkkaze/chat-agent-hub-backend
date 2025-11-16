@@ -17,7 +17,7 @@ class GlobalsResponse(BaseModel):
     frontend_project_name: str
 
 
-@router.get("/", response_model=GlobalsResponse)
+@router.get("", response_model=GlobalsResponse)
 async def get_globals() -> GlobalsResponse:
     """Get global application configuration from environment variables."""
     return GlobalsResponse(
