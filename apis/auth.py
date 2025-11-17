@@ -212,7 +212,7 @@ async def create_user(
     new_user = User(
         username=user_data.username,
         email=user_data.email,
-        phone=user_data.phone, 
+        phone=user_data.phone,
         hashed_password=hashed_password,
         role=UserRole[user_data.role] if user_data.role else UserRole.MEMBER,
         is_active=user_data.is_active

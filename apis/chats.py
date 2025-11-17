@@ -71,6 +71,7 @@ async def list_all_chats(
 @router.get("/channels/{channel_id}/chats", response_model=ChatListResponse)
 async def list_chats(
     channel_id: str,
+    phone: Optional[str] = Query(default=None, description="Phone number to search (minimum 10 digits)"),
     limit: int = Query(default=50, description="Number of chats to retrieve", ge=1, le=100),
     offset: int = Query(default=0, description="Number of chats to skip", ge=0),
     assigned_user_id: Optional[str] = Query(default=None, description="Filter by assigned user ID"),
@@ -78,44 +79,59 @@ async def list_chats(
     token: Token = Depends(get_auth_token),
     db_session: Session = Depends(get_session)
 ) -> ChatListResponse:
-    """Get paginated chat list from specific channel with filters by assigned user or status."""
-    
+    """Get paginated chat list from specific channel with optional phone search and filters."""
+
     # Validate that token is associated with a user or agent
     await require_user_or_agent(token=token, db_session=db_session)
-    
+
     # Get the channel
     channel_statement = select(Channel).where(Channel.id == channel_id)
     channel = db_session.exec(channel_statement).first()
-    
+
     if not channel:
         raise HTTPException(status_code=404, detail="Channel not found")
-    
+
     # Check channel access
     check_channel_access(token, channel, db_session)
-    
+
+    # Validate phone format if provided
+    if phone is not None:
+        # Remove all non-digit characters for validation
+        phone_digits = ''.join(filter(str.isdigit, phone))
+        if len(phone_digits) < 10:
+            raise HTTPException(
+                status_code=400,
+                detail="Phone number must contain at least 10 digits"
+            )
+        # Use the original phone value for search (might include formatting)
+
     # Build base chat query for filtering
     base_statement = select(Chat).where(Chat.channel_id == channel_id)
-    
-    # Apply filters
+
+    # Apply phone filter if provided
+    if phone is not None:
+        base_statement = base_statement.where(Chat.external_id == phone)
+
+    # Apply other filters
     if assigned_user_id is not None:
         base_statement = base_statement.where(Chat.assigned_user_id == assigned_user_id)
-    
+
     if assigned is not None:
         if assigned:
             base_statement = base_statement.where(Chat.assigned_user_id.is_not(None))
         else:
             base_statement = base_statement.where(Chat.assigned_user_id.is_(None))
-    
+
     # Get total count with filters applied
     total_count = len(db_session.exec(base_statement).all())
-    
+
     # Apply pagination and order by last_message_ts (newest first)
     paginated_statement = base_statement.order_by(desc(Chat.last_message_ts)).offset(offset).limit(limit)
     chats = db_session.exec(paginated_statement).all()
-    
+
     # Check if there are more chats
     has_more = (offset + len(chats)) < total_count
-    
+
     return ChatListResponse(
         chats=[ChatResponse.model_validate(chat) for chat in chats],
         total_count=total_count,
@@ -164,7 +180,7 @@ async def delete_chat(
     db_session: Session = Depends(get_session)
 ) -> Dict[str, Any]:
     """Delete chat within a channel (soft or hard delete) - admin and agent only."""
-    
+
     # Validate admin or agent access
     await require_admin_or_agent(token=token, db_session=db_session)
     
