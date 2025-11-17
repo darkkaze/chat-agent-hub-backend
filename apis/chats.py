@@ -94,23 +94,25 @@ async def list_chats(
     # Check channel access
     check_channel_access(token, channel, db_session)
 
-    # Validate phone format if provided
+    # Normalize phone format if provided
+    normalized_phone = None
     if phone is not None:
-        # Remove all non-digit characters for validation
+        # Remove all non-digit characters (removes +, -, (), spaces, etc)
         phone_digits = ''.join(filter(str.isdigit, phone))
         if len(phone_digits) < 10:
             raise HTTPException(
                 status_code=400,
                 detail="Phone number must contain at least 10 digits"
             )
-        # Use the original phone value for search (might include formatting)
+        # Store normalized phone (only digits) for search
+        normalized_phone = phone_digits
 
     # Build base chat query for filtering
     base_statement = select(Chat).where(Chat.channel_id == channel_id)
 
-    # Apply phone filter if provided
-    if phone is not None:
-        base_statement = base_statement.where(Chat.external_id == phone)
+    # Apply phone filter if provided (search uses normalized digits-only format)
+    if normalized_phone is not None:
+        base_statement = base_statement.where(Chat.external_id == normalized_phone)
 
     # Apply other filters
     if assigned_user_id is not None:
