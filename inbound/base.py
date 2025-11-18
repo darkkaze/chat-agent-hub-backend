@@ -43,7 +43,10 @@ class InboundHandlerFactory:
     def get_handler(platform: PlatformType, session: Session) -> InboundHandler:
         """Get the appropriate inbound handler for the platform."""
 
-        if platform == PlatformType.WHATSAPP_TWILIO:
+        if platform == PlatformType.WHATSAPP:
+            from .meta_whatsapp import MetaWhatsAppHandler
+            return MetaWhatsAppHandler(session)
+        elif platform == PlatformType.WHATSAPP_TWILIO:
             from .whatsapp_twilio import WhatsAppTwilioHandler
             return WhatsAppTwilioHandler(session)
         elif platform == PlatformType.WHAPI:

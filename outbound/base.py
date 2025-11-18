@@ -35,7 +35,10 @@ class OutboundHandlerFactory:
     def get_handler(platform: PlatformType) -> OutboundHandler:
         """Get the appropriate outbound handler for the platform."""
 
-        if platform == PlatformType.WHATSAPP_TWILIO:
+        if platform == PlatformType.WHATSAPP:
+            from .meta_whatsapp import MetaOutboundHandler
+            return MetaOutboundHandler()
+        elif platform == PlatformType.WHATSAPP_TWILIO:
             from .whatsapp_twilio import TwilioOutboundHandler
             return TwilioOutboundHandler()
         elif platform == PlatformType.WHAPI:
